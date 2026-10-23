@@ -1594,7 +1594,7 @@ function renderTypingIndicator() {
   return article;
 }
 
-async function updateGeminiConsent() {
+async function updateAgentConsent() {
   try {
     const result = await requestJson("/api/consent/gemini", {
       method: "PUT",
@@ -1827,7 +1827,7 @@ document.querySelector("#logout-button").addEventListener("click", async () => {
     showStatus(error.message, true);
   }
 });
-aiConsentCheckbox.addEventListener("change", updateGeminiConsent);
+aiConsentCheckbox.addEventListener("change", updateAgentConsent);
 profileForm.addEventListener("submit", saveProfile);
 document.querySelector("#generate-ai-report").addEventListener("click", generateAiReport);
 document.querySelector("#voice-button").addEventListener("click", startVoiceInput);

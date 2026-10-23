@@ -22,6 +22,8 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.staticfiles import StaticFiles
+from groq import APIConnectionError, APIStatusError, APITimeoutError, Groq
+from groq.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel, Field
 from reportlab.graphics.charts.barcharts import VerticalBarChart
 from reportlab.graphics.shapes import Drawing
@@ -74,6 +76,11 @@ app = FastAPI(
 )
 
 _rate_limit_state: dict[tuple[str, str], list[float]] = {}
+client: Groq | None = (
+    Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    if os.environ.get("GROQ_API_KEY")
+    else None
+)
 
 
 def _agentic_configuration() -> dict[str, Any]:
@@ -103,15 +110,8 @@ def _agent_role(role_id: str) -> dict[str, Any]:
 
 
 def _agent_has_key(model_number: int) -> bool:
-    if model_number == 1:
-        return bool(
-            os.environ.get("GEMINI_LLM1_API_KEY", "").strip()
-            or os.environ.get("GEMINI_API_KEY", "").strip()
-        )
-    return bool(
-        os.environ.get("GEMINI_LLM2_API_KEY", "").strip()
-        or os.environ.get("GEMINI_API_KEY", "").strip()
-    )
+    del model_number
+    return bool(os.environ.get("GROQ_API_KEY", "").strip())
 
 
 def _allowed_origins() -> set[str]:
@@ -777,62 +777,51 @@ def _create_model_response(
     *,
     model_number: int,
 ) -> str:
-    suffix = f"LLM{model_number}"
-    api_key = os.environ.get(f"GEMINI_{suffix}_API_KEY", "").strip()
-    if not api_key and model_number == 1:
-        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not api_key:
+    del model_number
+    model = os.environ.get("GROQ_MODEL", "").strip()
+    if not os.environ.get("GROQ_API_KEY", "").strip() or client is None:
         raise HTTPException(
             status_code=503,
-            detail="Agent provider is not configured. Set the provider key on the server to enable replies.",
+            detail="Groq is not configured. Set GROQ_API_KEY on the server to enable Agent features.",
         )
-    model = os.environ.get(
-        f"GEMINI_{suffix}_MODEL",
-        os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-    ).strip()
-    url = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{model}:generateContent?key={api_key}"
-    )
-    payload = {
-        "system_instruction": {"parts": [{"text": prompt}]},
-        "contents": contents,
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 700},
-    }
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+    if not model:
+        raise HTTPException(
+            status_code=503,
+            detail="Groq is not configured. Set GROQ_MODEL on the server to enable Agent features.",
+        )
+    messages: list[ChatCompletionMessageParam] = [{"role": "system", "content": prompt}]
+    for item in contents:
+        parts = item.get("parts", [])
+        content = "\n".join(
+            part["text"] for part in parts
+            if isinstance(part, dict) and isinstance(part.get("text"), str)
+        )
+        if item.get("role") in {"model", "assistant"}:
+            messages.append({"role": "assistant", "content": content})
+        else:
+            messages.append({"role": "user", "content": content})
     try:
-        with urllib.request.urlopen(request, timeout=35) as response:
-            result = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as error:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0.4,
+            max_tokens=700,
+        )
+    except APIStatusError as error:
         raise HTTPException(
             status_code=502,
-            detail=f"Agent request failed with status {error.code}. Check the server key, model, and quota.",
+            detail=f"Groq request failed with status {error.status_code}. Check the server key, model, and quota.",
         ) from error
-    except (urllib.error.URLError, TimeoutError) as error:
-        raise HTTPException(status_code=502, detail="Agent could not be reached. Please try again.") from error
-    except (json.JSONDecodeError, UnicodeDecodeError) as error:
-        raise HTTPException(status_code=502, detail="Agent returned an unreadable response.") from error
-
-    try:
-        text = "".join(
-            part["text"]
-            for part in result["candidates"][0]["content"]["parts"]
-            if isinstance(part.get("text"), str)
-        ).strip()
-    except (KeyError, IndexError, TypeError) as error:
-        raise HTTPException(status_code=502, detail="Agent returned no usable text.") from error
+    except (APIConnectionError, APITimeoutError) as error:
+        raise HTTPException(status_code=502, detail="Groq could not be reached. Please try again.") from error
+    choice = response.choices[0] if response.choices else None
+    text = choice.message.content.strip() if choice and isinstance(choice.message.content, str) else ""
     if not text:
-        raise HTTPException(status_code=502, detail="Agent returned an empty reply.")
+        raise HTTPException(status_code=502, detail="Groq returned an empty reply.")
     return text
 
 
-def _create_gemini_response(prompt: str, contents: list[dict[str, Any]]) -> str:
-    """Compatibility wrapper for existing integrations and tests."""
+def _create_agent_response(prompt: str, contents: list[dict[str, Any]]) -> str:
     return _create_model_response(prompt, contents, model_number=2)
 
 
@@ -1656,7 +1645,7 @@ def update_profile(
 
 
 @app.put("/api/consent/gemini")
-def set_gemini_consent(
+def set_agent_consent(
     request: AiConsentRequest,
     account: dict[str, Any] = Depends(_current_account),
 ) -> dict[str, bool]:
@@ -1726,13 +1715,10 @@ def chat(
     ]
     contents.append({"role": "user", "parts": [{"text": text}]})
     language_name = {"en": "English", "hi": "Hindi", "mr": "Marathi"}[request.language]
-    if _demo_mode_enabled() and not (
-        os.environ.get("GEMINI_LLM2_API_KEY", "").strip()
-        or os.environ.get("GEMINI_API_KEY", "").strip()
-    ):
+    if _demo_mode_enabled() and not _agent_has_key(2):
         reply = _demo_chat_reply(text, request.language)
     else:
-        reply = _create_gemini_response(
+        reply = _create_agent_response(
             (
                 f"You are the {_agent_role('conversation-agent')['role']}, not a clinician. "
                 "Respond in "
@@ -2136,7 +2122,7 @@ def ai_report_summary(
         f"Model 1 structured observations: {json.dumps([json.loads(row['observation_json']) for row in model_observations], ensure_ascii=False)}\n"
         f"Conversation excerpt: {json.dumps(chat_excerpt, ensure_ascii=False)}"
     )
-    text = _create_gemini_response(
+    text = _create_agent_response(
         "Follow the requested JSON format exactly. Do not use markdown fences.",
         [{"role": "user", "parts": [{"text": prompt}]}],
     )

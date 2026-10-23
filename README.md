@@ -19,12 +19,8 @@ Python and pip are required. In PowerShell, from the project folder:
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-$env:GEMINI_API_KEY = "your-key"
-# Optional separate model configuration; both default to gemini-2.5-flash
-$env:GEMINI_LLM1_API_KEY = "model-1-key"
-$env:GEMINI_LLM1_MODEL = "gemini-2.5-flash"
-$env:GEMINI_LLM2_API_KEY = "model-2-key"
-$env:GEMINI_LLM2_MODEL = "gemini-2.5-flash"
+$env:GROQ_API_KEY = "your-key"
+$env:GROQ_MODEL = "your-enabled-groq-model"
 python -m uvicorn main:app --reload
 ```
 
@@ -79,7 +75,7 @@ No clinical accuracy, sensitivity, specificity, positive predictive value, or di
 
 The Agent provider is used for conversational responses and optional report reflections. Only after separate Agent consent, the app may send recent chat messages and recent task observations to the configured provider. It does not send the optional profile fields. The provider key is read by the server and is never sent to the browser. Model availability, quotas, and terms can change, so verify the chosen model and data-handling terms before a presentation or deployment.
 
-The two-model flow uses Model 1 as a structured observation extractor after chat turns and activities. It records response time, typing corrections, and repeated-message counts when available. Model 2 runs when the participant requests an Agent summary and produces a patient-facing, non-diagnostic report without raw scores. If `GEMINI_LLM1_API_KEY` is not configured, local measured fields are still retained and Model 1's inferred fields remain empty; configure both model keys before deployment.
+The two-role flow uses the configured Groq model for structured observation extraction after chat turns and activities, and for patient-facing descriptive reports when requested. It records response time, typing corrections, and repeated-message counts when available. Both roles use `GROQ_API_KEY` and `GROQ_MODEL`. If the key is not configured, local measured fields are still retained and Agent-generated fields remain unavailable.
 
 The constrained agentic workflow is described in `data/agentic_ai_configuration.json` and exposed to the signed-in application through `GET /api/agent/workflow`. It separates conversation, structured observation, and reporting responsibilities; validates the required workflow order; uses only consented server-provided context; keeps the daily session server-authoritative; allows no autonomous external actions; and forbids diagnosis, score invention, medication advice, or raw-score display in the patient view. The endpoint reports role availability without exposing credentials or participant data. Real credentials and external integrations remain deployment decisions.
 

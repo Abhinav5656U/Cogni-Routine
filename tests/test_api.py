@@ -4,8 +4,9 @@ import hmac
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import urlencode
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -54,13 +55,13 @@ class ChatApiTests(unittest.TestCase):
             return response.json()["participant_id"]
         return ""
 
-    def consent_to_gemini(self) -> None:
+    def consent_to_agent(self) -> None:
         response = self.client.put("/api/consent/gemini", json={"consented": True})
         self.assertEqual(response.status_code, 200)
 
     def chat(self, text: str = "I enjoyed gardening today.", language: str = "en"):
-        self.consent_to_gemini()
-        with patch.object(main, "_create_gemini_response", return_value="That sounds pleasant."):
+        self.consent_to_agent()
+        with patch.object(main, "_create_agent_response", return_value="That sounds pleasant."):
             return self.client.post(
                 "/api/chat",
                 json={
@@ -103,7 +104,7 @@ class ChatApiTests(unittest.TestCase):
         self.assertEqual(workflow["external_actions"], [])
         self.assertNotIn("api_key", json.dumps(workflow))
 
-        self.consent_to_gemini()
+        self.consent_to_agent()
         consented = self.client.get("/api/agent/workflow").json()
         self.assertTrue(consented["consented"])
 
@@ -207,7 +208,7 @@ class ChatApiTests(unittest.TestCase):
         self.client.post("/api/auth/logout")
         self.assertEqual(self.client.get("/api/auth/me").status_code, 401)
 
-    def test_gemini_chat_requires_explicit_ai_consent_and_persists_response(self) -> None:
+    def test_groq_chat_requires_explicit_ai_consent_and_persists_response(self) -> None:
         request = {
             "participant_id": self.participant_id,
             "language": "hi",
@@ -216,17 +217,17 @@ class ChatApiTests(unittest.TestCase):
         }
         denied = self.client.post("/api/chat", json=request)
         self.assertEqual(denied.status_code, 403)
-        self.consent_to_gemini()
-        with patch.object(main, "_create_gemini_response", return_value="आपका दिन अच्छा रहा, यह सुनकर खुशी हुई।"):
+        self.consent_to_agent()
+        with patch.object(main, "_create_agent_response", return_value="आपका दिन अच्छा रहा, यह सुनकर खुशी हुई।"):
             response = self.client.post("/api/chat", json=request)
         self.assertEqual(response.status_code, 200)
         self.assertIn("अच्छा रहा", response.json()["assistant_message"]["text"])
         history = self.client.get(f"/api/conversations/{self.participant_id}")
         self.assertEqual([row["sender"] for row in history.json()["messages"]], ["user", "assistant"])
 
-    def test_missing_gemini_key_returns_explicit_error_without_saving_message(self) -> None:
-        self.consent_to_gemini()
-        with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
+    def test_missing_groq_key_returns_explicit_error_without_saving_message(self) -> None:
+        self.consent_to_agent()
+        with patch.dict("os.environ", {"GROQ_API_KEY": ""}), patch.object(main, "client", None):
             response = self.client.post(
                 "/api/chat",
                 json={
@@ -239,6 +240,40 @@ class ChatApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         history = self.client.get(f"/api/conversations/{self.participant_id}")
         self.assertEqual(history.json()["messages"], [])
+
+    def test_groq_chat_completion_uses_configured_model_and_extracts_text(self) -> None:
+        create = Mock(
+            return_value=SimpleNamespace(
+                choices=[SimpleNamespace(message=SimpleNamespace(content="Groq reply"))]
+            )
+        )
+        fake_client = SimpleNamespace(
+            chat=SimpleNamespace(
+                completions=SimpleNamespace(create=create),
+            )
+        )
+        with patch.dict(
+            "os.environ",
+            {"GROQ_API_KEY": "test-key", "GROQ_MODEL": "test-model"},
+        ), patch.object(main, "client", fake_client):
+            text = main._create_model_response(
+                "System prompt",
+                [
+                    {"role": "user", "parts": [{"text": "Hello"}]},
+                    {"role": "model", "parts": [{"text": "Earlier reply"}]},
+                ],
+                model_number=1,
+            )
+        self.assertEqual(text, "Groq reply")
+        self.assertEqual(create.call_args.kwargs["model"], "test-model")
+        self.assertEqual(
+            create.call_args.kwargs["messages"],
+            [
+                {"role": "system", "content": "System prompt"},
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Earlier reply"},
+            ],
+        )
 
     def test_account_cannot_access_another_participants_records(self) -> None:
         own_id = self.participant_id
@@ -338,7 +373,7 @@ class ChatApiTests(unittest.TestCase):
         self.assertIn("calibration", result["baseline_analysis"])
         self.assertIn("data_quality", result["baseline_analysis"])
 
-    def test_gemini_report_uses_chat_and_metrics_but_excludes_profile_notes(self) -> None:
+    def test_groq_report_uses_chat_and_metrics_but_excludes_profile_notes(self) -> None:
         self.client.put(
             "/api/profile",
             json={
@@ -367,7 +402,7 @@ class ChatApiTests(unittest.TestCase):
             '{"summary":"Your recorded activity varied across this period.",'
             '"positives":["You completed an activity."],"watch_items":[]}'
         )
-        with patch.object(main, "_create_gemini_response", return_value=response_text) as gemini:
+        with patch.object(main, "_create_agent_response", return_value=response_text) as groq:
             response = self.client.post(
                 f"/api/reports/{self.participant_id}/summary",
                 json={},
@@ -377,7 +412,7 @@ class ChatApiTests(unittest.TestCase):
         self.assertTrue(result["summary"].endswith(
             "This is not a diagnosis; discuss persistent changes with a doctor."
         ))
-        submitted = str(gemini.call_args.args[1])
+        submitted = str(groq.call_args.args[1])
         self.assertIn("I like to garden", submitted)
         self.assertIn("Symbol matching", submitted)
         self.assertNotIn("PRIVATE_HOBBY_NOTE", submitted)
@@ -431,8 +466,8 @@ class ChatApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 409)
 
     def test_voice_capture_signal_is_saved_as_neutral_observation_metadata(self) -> None:
-        self.consent_to_gemini()
-        with patch.object(main, "_create_gemini_response", return_value="Thanks for sharing."):
+        self.consent_to_agent()
+        with patch.object(main, "_create_agent_response", return_value="Thanks for sharing."):
             response = self.client.post(
                 "/api/chat",
                 json={
