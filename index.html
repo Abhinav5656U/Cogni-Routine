@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7f2">
+    <meta name="description" content="A gentle daily check-in and memory activity from Cogni-Routine.">
+    <title>Cogni-Routine | Daily check-in</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="auth-screen" id="auth-screen">
+      <section class="auth-card" aria-labelledby="auth-title">
+        <a class="brand auth-brand" href="#" aria-label="Cogni-Routine">
+          <span class="brand-mark" aria-hidden="true">+</span>
+          <span>Cogni-Routine</span>
+        </a>
+        <p class="eyebrow">PRIVATE WELLBEING JOURNAL</p>
+        <h1 id="auth-title">A daily check-in, at your pace.</h1>
+        <p class="auth-intro">Your conversations and activity history stay in your account. You can separately choose whether messages are shared with the Agent for replies.</p>
+        <div class="auth-tabs" role="tablist" aria-label="Account access">
+          <button id="show-register" type="button" role="tab" aria-selected="true">Create account</button>
+          <button id="show-login" type="button" role="tab" aria-selected="false">Sign in</button>
+        </div>
+        <form id="register-form" class="auth-form">
+          <div class="form-row">
+            <label>Full name<input name="name" autocomplete="name" maxlength="100" required></label>
+            <label>Age<input name="age" type="number" min="18" max="120" required></label>
+          </div>
+          <label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
+          <label>Password <small>(at least 10 characters)</small><input name="password" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label>
+          <label>Preferred language
+            <select name="language">
+              <option value="en">English</option>
+              <option value="hi">हिन्दी</option>
+              <option value="mr">मराठी</option>
+            </select>
+          </label>
+          <details class="profile-intake">
+            <summary>Optional health and interest details</summary>
+            <p>These notes stay in your local account and are not sent to the Agent.</p>
+            <label>Hobbies and interests<textarea name="hobbies" rows="2" maxlength="500"></textarea></label>
+            <label>Health conditions you choose to note<textarea name="health_conditions" rows="2" maxlength="1000"></textarea></label>
+            <label>What would you like support with?<textarea name="concerns" rows="2" maxlength="1000"></textarea></label>
+            <label>Notes from a prior report (do not upload identifying documents)<textarea name="prior_report_notes" rows="2" maxlength="2000"></textarea></label>
+          </details>
+          <label class="auth-consent"><input name="consented" type="checkbox" required><span>I agree to save my profile, check-ins, and activity results in this app. I can delete them later.</span></label>
+          <button class="primary-button auth-submit" type="submit">Create my account</button>
+        </form>
+        <form id="login-form" class="auth-form" hidden>
+          <label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
+          <label>Password<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label>
+          <button class="primary-button auth-submit" type="submit">Sign in</button>
+        </form>
+        <p id="auth-status" class="auth-status" role="status" aria-live="polite"></p>
+        <p class="auth-safety">Cogni-Routine provides wellbeing tracking and a mild cognitive activity. It is not medical advice or a diagnosis.</p>
+      </section>
+    </main>
+
+    <main class="app-shell" id="app-shell" hidden>
+      <aside class="app-sidebar" aria-label="Main navigation">
+        <a class="brand sidebar-brand" href="#chat-card" data-view="chat-card" aria-label="Cogni-Routine home">
+          <span class="brand-mark" aria-hidden="true">+</span>
+          <span>Cogni-Routine</span>
+        </a>
+        <nav class="sidebar-nav">
+          <a href="#chat-card" data-view="chat-card" aria-current="page"><span aria-hidden="true">◦</span> Daily chat</a>
+          <a href="#activity-section" data-view="activity-section"><span aria-hidden="true">▦</span> Activities</a>
+          <a href="#report-section" data-view="report-section"><span aria-hidden="true">▤</span> My history</a>
+          <a href="#profile-section" data-view="profile-section"><span aria-hidden="true">○</span> Profile</a>
+        </nav>
+        <div class="sidebar-bottom">
+          <span class="sidebar-user" id="sidebar-user"></span>
+          <button class="sidebar-logout" id="logout-button" type="button">Sign out</button>
+        </div>
+      </aside>
+        <div class="main-content">
+        <header class="topbar">
+        <a class="brand" href="#" aria-label="Cogni-Routine home">
+          <span class="brand-mark" aria-hidden="true">+</span>
+          <span>cogni-routine</span>
+        </a>
+        <label class="language-picker">
+          <span class="sr-only">Choose language</span>
+          <select id="language-select" aria-label="Choose language">
+            <option value="en">English</option>
+            <option value="hi">हिन्दी</option>
+            <option value="mr">मराठी</option>
+          </select>
+        </label>
+      </header>
+
+      <section class="chat-card" id="chat-card" aria-labelledby="chat-title">
+        <div class="chat-heading">
+          <div class="assistant-avatar" aria-hidden="true">+</div>
+          <div>
+            <p class="eyebrow" id="eyebrow"></p>
+            <h2 id="chat-title"></h2>
+          </div>
+          <span class="online-status"><span></span><span id="chat-status"></span></span>
+        </div>
+
+        <div class="chat-body" id="chat-log" aria-live="polite" aria-relevant="additions text">
+          <div class="date-divider"><span id="today-date"></span></div>
+          <article class="message assistant-message">
+            <div class="message-content">
+              <p class="message-sender" id="assistant-name"></p>
+              <div class="bubble">
+                <p id="greeting"></p>
+                <p id="opening-question"></p>
+              </div>
+              <time class="message-time" id="greeting-time"></time>
+            </div>
+          </article>
+
+          <div class="chat-activity-container" id="chat-activity-container"></div>
+          <button class="chat-test-button" id="chat-test-button" type="button">Try a short cognitive activity</button>
+        </div>
+
+        <form class="composer" id="message-form">
+          <label class="sr-only" for="message-input" id="input-label"></label>
+          <button class="voice-button" id="voice-button" type="button" aria-label="Speak a message" title="Speak a message">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg>
+          </button>
+          <input
+            id="message-input"
+            name="message"
+            type="text"
+            maxlength="1000"
+            placeholder=""
+            autocomplete="off"
+          >
+          <button class="send-button" type="submit" aria-label="Send message">
+            <span>Send</span>
+            <svg aria-hidden="true" viewBox="0 0 20 20">
+              <path d="M3 10h13M10 4l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </form>
+        <label class="chat-consent">
+          <input id="consent-checkbox" type="checkbox" checked>
+          <span id="consent-copy">Save this chat and activity history in my account.</span>
+        </label>
+        <p class="privacy-note" id="privacy-note">Saved in your account. Avoid sharing information you do not want stored.</p>
+        <p class="status-message" id="status-message" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="activity-section" id="activity-section" aria-labelledby="activity-title" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow" id="activity-eyebrow"></p>
+            <h2 id="activity-title"></h2>
+            <p class="section-description" id="activity-description"></p>
+          </div>
+          <span class="activity-duration" id="activity-duration"></span>
+        </div>
+        <div class="activity-card">
+          <div class="activity-intro" id="activity-intro">
+            <p class="activity-selection-copy" id="activity-selection-copy"></p>
+            <div class="activity-options">
+              <button class="activity-option" type="button" data-task="word_recall">
+                <span class="activity-icon" aria-hidden="true">01</span>
+                <span><strong id="word-task-title"></strong><small id="word-task-copy"></small></span>
+              </button>
+              <button class="activity-option" type="button" data-task="category_fluency">
+                <span class="activity-icon fluency-icon" aria-hidden="true">02</span>
+                <span><strong id="fluency-task-title"></strong><small id="fluency-task-copy"></small></span>
+              </button>
+              <button class="activity-option" type="button" data-task="spatial_recall">
+                <span class="activity-icon spatial-icon" aria-hidden="true">03</span>
+                <span><strong id="spatial-task-title"></strong><small id="spatial-task-copy"></small></span>
+              </button>
+              <button class="activity-option" type="button" data-task="symbol_match">
+                <span class="activity-icon" aria-hidden="true">04</span>
+                <span><strong id="symbol-task-title">Symbol matching</strong><small id="symbol-task-copy">Choose matching symbols at a comfortable pace.</small></span>
+              </button>
+              <button class="activity-option" type="button" data-task="reaction_tap">
+                <span class="activity-icon" aria-hidden="true">05</span>
+                <span><strong id="reaction-task-title">Visual response</strong><small id="reaction-task-copy">Tap when the cue appears; wait when it does not.</small></span>
+              </button>
+            </div>
+          </div>
+          <div class="activity-play" id="activity-play" hidden>
+            <p class="activity-step" id="activity-step"></p>
+            <div class="word-display" id="word-display" aria-live="polite"></div>
+            <div class="spatial-grid" id="spatial-grid" hidden aria-label="Spatial recall grid"></div>
+            <div class="symbol-game" id="symbol-game" hidden>
+              <p id="symbol-progress"></p>
+              <div class="symbol-target" id="symbol-target" aria-live="polite"></div>
+              <div class="symbol-choices" id="symbol-choices"></div>
+            </div>
+            <div class="reaction-game" id="reaction-game" hidden>
+              <p id="reaction-instructions"></p>
+              <button id="reaction-cue" class="reaction-cue" type="button" aria-label="Response area"></button>
+              <p id="reaction-progress"></p>
+            </div>
+            <div class="fluency-entry" id="fluency-entry" hidden>
+              <label for="fluency-input" id="fluency-label"></label>
+              <textarea id="fluency-input" rows="3"></textarea>
+            </div>
+            <p class="activity-timer" id="activity-timer"></p>
+            <form id="recall-form" hidden>
+              <div class="recall-fields">
+                <label><span class="sr-only" id="recall-label-1"></span><input type="text" maxlength="40" autocomplete="off"></label>
+                <label><span class="sr-only" id="recall-label-2"></span><input type="text" maxlength="40" autocomplete="off"></label>
+                <label><span class="sr-only" id="recall-label-3"></span><input type="text" maxlength="40" autocomplete="off"></label>
+              </div>
+              <button class="primary-button" id="submit-recall" type="submit"></button>
+            </form>
+            <div class="activity-controls">
+              <button class="secondary-button" id="cancel-activity" type="button"></button>
+              <button class="primary-button" id="submit-activity" type="button" hidden></button>
+            </div>
+          </div>
+          <div class="activity-result" id="activity-result" hidden aria-live="polite"></div>
+        </div>
+        <p class="activity-disclaimer" id="activity-disclaimer"></p>
+      </section>
+
+      <section class="report-section" id="report-section" aria-labelledby="report-title" hidden>
+        <div class="section-heading report-heading">
+          <div>
+            <p class="eyebrow" id="report-eyebrow"></p>
+            <h2 id="report-title"></h2>
+            <p class="section-description" id="report-description"></p>
+          </div>
+          <div class="report-actions">
+            <button class="secondary-button" id="refresh-report" type="button"></button>
+            <button class="secondary-button" id="generate-ai-report" type="button">Agent summary</button>
+            <button class="secondary-button" id="download-report" type="button"></button>
+            <button class="secondary-button" id="print-report" type="button"></button>
+          </div>
+        </div>
+        <div class="report-card" id="report-card" aria-live="polite"></div>
+        <div id="ai-report-summary" class="ai-report-summary" hidden aria-live="polite"></div>
+      </section>
+
+      <section class="profile-section" id="profile-section" aria-labelledby="profile-title" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">YOUR DETAILS</p>
+            <h2 id="profile-title">Profile and health notes</h2>
+            <p class="section-description">Optional information for your own reference. Profile notes are not sent to the Agent.</p>
+          </div>
+        </div>
+        <form id="profile-form" class="profile-form">
+          <div class="form-row">
+            <label>Full name<input name="name" required maxlength="100"></label>
+            <label>Age<input name="age" type="number" min="18" max="120" required></label>
+          </div>
+          <label>Preferred language
+            <select name="language"><option value="en">English</option><option value="hi">हिन्दी</option><option value="mr">मराठी</option></select>
+          </label>
+          <label>Hobbies and interests<textarea name="hobbies" rows="2" maxlength="500"></textarea></label>
+          <label>Health conditions you choose to note<textarea name="health_conditions" rows="2" maxlength="1000"></textarea></label>
+          <label>What would you like support with?<textarea name="concerns" rows="2" maxlength="1000"></textarea></label>
+          <label>Notes from a prior report<textarea name="prior_report_notes" rows="2" maxlength="2000"></textarea></label>
+          <label class="ai-consent-label">
+            <input id="ai-consent-checkbox" type="checkbox">
+            <span>Allow the Agent to process recent chat and activity data for replies and summaries. Profile notes are excluded. You can turn this off anytime.</span>
+          </label>
+          <button class="primary-button" type="submit">Save profile</button>
+          <span id="profile-status" role="status"></span>
+        </form>
+        <div class="profile-data-actions">
+          <button class="clear-button" id="clear-conversation" type="button"></button>
+        </div>
+        <footer class="safety-note">
+          <span class="safety-icon" aria-hidden="true">i</span>
+          <p id="safety-copy"></p>
+        </footer>
+      </section>
+
+      </div>
+    </main>
+  </body>
+</html>

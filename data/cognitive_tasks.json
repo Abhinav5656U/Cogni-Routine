@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "purpose": "Optional structured wellbeing activities for longitudinal personal tracking. These tasks are not clinical tests and do not diagnose or screen for disease.",
+  "languages": ["en", "hi", "mr"],
+  "tasks": [
+    {
+      "id": "spatial_recall",
+      "name": "Spatial sequence",
+      "domain": "visuospatial",
+      "max_score": 3,
+      "duration_seconds": 15,
+      "measure": "Number of target positions selected correctly after the pattern is hidden.",
+      "instructions": {
+        "en": "Look at the highlighted squares. When they disappear, choose the same squares. Take your time.",
+        "hi": "हाइलाइट किए गए खानों को देखें। छिपने के बाद वही खाने चुनें। आराम से करें।",
+        "mr": "हायलाइट केलेले चौकोन पाहा. ते लपल्यानंतर तेच चौकोन निवडा. वेळ घेऊन करा."
+      },
+      "stimulus": {
+        "grid_rows": 4,
+        "grid_columns": 4,
+        "target_count": 3,
+        "display_seconds": 5
+      },
+      "stored_metrics": ["correct_positions", "duration_seconds"]
+    },
+    {
+      "id": "symbol_match",
+      "name": "Symbol matching",
+      "domain": "attention",
+      "max_score": 8,
+      "duration_seconds": 30,
+      "measure": "Correct matches out of eight simple visual choices; response time is recorded as an aggregate.",
+      "instructions": {
+        "en": "Find the symbol that matches the target shown above each row. Work at a comfortable pace.",
+        "hi": "हर पंक्ति के ऊपर दिए लक्ष्य से मेल खाने वाला चिन्ह चुनें। अपनी सहज गति से करें।",
+        "mr": "प्रत्येक ओळीवरील लक्ष्याशी जुळणारे चिन्ह निवडा. आपल्या सोयीच्या गतीने करा."
+      },
+      "stimulus": {
+        "target_symbols": ["○", "△", "□", "◇"],
+        "choice_count": 4,
+        "rounds": 8
+      },
+      "stored_metrics": ["correct_matches", "median_response_ms"]
+    },
+    {
+      "id": "reaction_tap",
+      "name": "Visual response",
+      "domain": "response",
+      "max_score": 8,
+      "duration_seconds": 30,
+      "measure": "Correct responses to a simple visual cue; response times and missed/early taps are summarized.",
+      "instructions": {
+        "en": "Tap when the blue circle appears. Wait when the screen is blank. There is no need to rush.",
+        "hi": "नीला गोला दिखे तो टैप करें। स्क्रीन खाली हो तो प्रतीक्षा करें। जल्दी करने की ज़रूरत नहीं है।",
+        "mr": "निळे वर्तुळ दिसल्यावर टॅप करा. स्क्रीन रिकामी असल्यास थांबा. घाई करण्याची गरज नाही."
+      },
+      "stimulus": {
+        "go_cue": "●",
+        "no_go_cue": "—",
+        "rounds": 8,
+        "minimum_interval_ms": 700,
+        "maximum_interval_ms": 1600
+      },
+      "stored_metrics": ["correct_responses", "median_response_ms", "missed_cues", "early_taps"]
+    },
+    {
+      "id": "word_recall",
+      "name": "Word recall",
+      "domain": "memory",
+      "max_score": 3,
+      "duration_seconds": 20,
+      "measure": "Number of words recalled from a short, changing list after a brief delay.",
+      "instructions": {
+        "en": "Remember the three words. After they disappear, type the words you remember.",
+        "hi": "तीन शब्द याद रखें। उनके छिपने के बाद जो शब्द याद हों, लिखें।",
+        "mr": "तीन शब्द लक्षात ठेवा. ते लपल्यानंतर आठवणारे शब्द लिहा."
+      },
+      "stimulus": {
+        "display_seconds": 5,
+        "word_count": 3,
+        "word_lists": {
+          "en": [["mango", "key", "river"], ["garden", "candle", "bridge"], ["lemon", "basket", "cloud"]],
+          "hi": [["आम", "चाबी", "नदी"], ["बगीचा", "दीपक", "पुल"], ["नींबू", "टोकरी", "बादल"]],
+          "mr": [["आंबा", "किल्ली", "नदी"], ["बाग", "दिवा", "पूल"], ["लिंबू", "टोपली", "ढग"]]
+        }
+      },
+      "stored_metrics": ["words_recalled", "duration_seconds"]
+    },
+    {
+      "id": "category_fluency",
+      "name": "Category fluency",
+      "domain": "language",
+      "max_score": 50,
+      "duration_seconds": 60,
+      "measure": "Count of unique participant-entered category words; the raw words are not saved or sent for analysis.",
+      "instructions": {
+        "en": "Name as many different animals as you can. Separate each word with a comma or new line. Go at your own pace.",
+        "hi": "जितने अलग-अलग जानवरों के नाम याद हों लिखें। हर शब्द को कॉमा या नई पंक्ति से अलग करें।",
+        "mr": "शक्य तितक्या वेगवेगळ्या प्राण्यांची नावे लिहा. प्रत्येक शब्द स्वल्पविरामाने किंवा नवीन ओळीने वेगळा करा."
+      },
+      "stimulus": {
+        "category": "animals",
+        "time_limit_seconds": 60,
+        "persist_raw_entries": false
+      },
+      "stored_metrics": ["unique_entry_count", "duration_seconds"]
+    }
+  ],
+  "limitations": [
+    "The activities are unvalidated product activities, not substitutes for standardized assessment.",
+    "Scores are affected by language, education, fatigue, sensory or motor needs, device, familiarity, and context.",
+    "Response timing from a browser is approximate and is not a clinical biomarker.",
+    "Hindi and Marathi word tokenization and category scoring need language-specific research before interpretation."
+  ]
+}

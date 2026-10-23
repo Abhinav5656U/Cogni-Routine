@@ -1,0 +1,276 @@
+{
+  "version": 1,
+  "cycle_days": 30,
+  "questions": [
+    {
+      "id": "day-01",
+      "category": "morning_check_in",
+      "text": {
+        "en": "Good morning! Did you sleep well last night?",
+        "hi": "Good morning! Kya aap kal raat theek se soye?",
+        "mr": "शुभ सकाळ! काल रात्री तुम्हाला शांत झोप लागली का?"
+      }
+    },
+    {
+      "id": "day-02",
+      "category": "morning_check_in",
+      "text": {
+        "en": "What did you have for breakfast today?",
+        "hi": "Aaj nashte mein aapne kya khaya?",
+        "mr": "आज नाश्त्याला तुम्ही काय खाल्ले?"
+      }
+    },
+    {
+      "id": "day-03",
+      "category": "morning_check_in",
+      "text": {
+        "en": "Would you prefer tea or coffee today?",
+        "hi": "Aaj chai ya coffee, kya pasand karenge?",
+        "mr": "आज चहा घेणार की कॉफी?"
+      }
+    },
+    {
+      "id": "day-04",
+      "category": "morning_check_in",
+      "text": {
+        "en": "How is the weather outside today?",
+        "hi": "Aaj bahar mausam kaisa hai?",
+        "mr": "आज बाहेर हवामान कसे आहे?"
+      }
+    },
+    {
+      "id": "day-05",
+      "category": "morning_check_in",
+      "text": {
+        "en": "Are you feeling fresh and active this morning?",
+        "hi": "Kya aaj subah aap taaza aur chust mehsoos kar rahe hain?",
+        "mr": "आज सकाळी तुम्हाला ताजेतवाने आणि उत्साही वाटत आहे का?"
+      }
+    },
+    {
+      "id": "day-06",
+      "category": "morning_check_in",
+      "text": {
+        "en": "What was the very first thing you did today?",
+        "hi": "Aaj subah uthte hi sabse pehle aapne kya kiya?",
+        "mr": "आज सकाळी उठल्यावर सर्वात पहिली गोष्ट तुम्ही काय केली?"
+      }
+    },
+    {
+      "id": "day-07",
+      "category": "daily_routine",
+      "text": {
+        "en": "Did you go for a walk or exercise today?",
+        "hi": "Kya aaj aap thoda ghoomne ya walk par gaye the?",
+        "mr": "आज तुम्ही चालायला किंवा व्यायाम करायला गेला होतात का?"
+      }
+    },
+    {
+      "id": "day-08",
+      "category": "daily_routine",
+      "text": {
+        "en": "Do you have any special plans for today?",
+        "hi": "Aaj ke liye koi khaas plan hai aapka?",
+        "mr": "आजसाठी तुमचा काही खास बेत आहे का?"
+      }
+    },
+    {
+      "id": "day-09",
+      "category": "daily_routine",
+      "text": {
+        "en": "Are you expecting any visitors or guests today?",
+        "hi": "Kya aaj aapse milne koi aane wala hai?",
+        "mr": "आज तुम्हाला भेटायला कोणी येणार आहे का?"
+      }
+    },
+    {
+      "id": "day-10",
+      "category": "daily_routine",
+      "text": {
+        "en": "Did you help with any household chores today?",
+        "hi": "Kya aaj aapne ghar ke kisi kaam mein hath bataya?",
+        "mr": "आज तुम्ही घरातील कोणत्याही कामात मदत केली का?"
+      }
+    },
+    {
+      "id": "day-11",
+      "category": "daily_routine",
+      "text": {
+        "en": "What did you have for lunch this afternoon?",
+        "hi": "Aaj dopahar ke khane mein aapne kya khaya?",
+        "mr": "आज दुपारच्या जेवणात तुम्ही काय खाल्ले?"
+      }
+    },
+    {
+      "id": "day-12",
+      "category": "daily_routine",
+      "text": {
+        "en": "Did you take a short nap this afternoon?",
+        "hi": "Kya aaj dopahar mein aapne thodi der aaram kiya?",
+        "mr": "आज दुपारी तुम्ही थोडा वेळ विश्रांती घेतली का?"
+      }
+    },
+    {
+      "id": "day-13",
+      "category": "daily_routine",
+      "text": {
+        "en": "Did you have your evening tea and snacks?",
+        "hi": "Kya aapne shaam ki chai aur nashta le liya?",
+        "mr": "तुम्ही संध्याकाळचा चहा आणि नाश्ता घेतला का?"
+      }
+    },
+    {
+      "id": "day-14",
+      "category": "daily_routine",
+      "text": {
+        "en": "Did you talk to any family members or friends on the phone today?",
+        "hi": "Kya aaj aapki kisi dost ya rishtedar se phone par baat hui?",
+        "mr": "आज तुमचे मित्र किंवा नातेवाईकांशी फोनवर बोलणे झाले का?"
+      }
+    },
+    {
+      "id": "day-15",
+      "category": "daily_routine",
+      "text": {
+        "en": "Have you been drinking enough water throughout the day?",
+        "hi": "Kya aap din bhar paryapt pani pi rahe hain?",
+        "mr": "तुम्ही दिवसभरात पुरेसे पाणी पीत आहात का?"
+      }
+    },
+    {
+      "id": "day-16",
+      "category": "memory_and_recall",
+      "text": {
+        "en": "Which is your favorite childhood game?",
+        "hi": "Aapke bachpan ka pasandida khel kaun sa hai?",
+        "mr": "तुमच्या बालपणीचा आवडता खेळ कोणता?"
+      }
+    },
+    {
+      "id": "day-17",
+      "category": "memory_and_recall",
+      "text": {
+        "en": "What day of the week is it today?",
+        "hi": "Aaj hafte ka kaun sa din hai?",
+        "mr": "आज आठवड्याचा कोणता वार आहे?"
+      }
+    },
+    {
+      "id": "day-18",
+      "category": "memory_and_recall",
+      "text": {
+        "en": "What did you have for dinner last night?",
+        "hi": "Kal raat khane mein aapne kya khaya tha?",
+        "mr": "काल रात्री जेवणात तुम्ही काय खाल्ले होते?"
+      }
+    },
+    {
+      "id": "day-19",
+      "category": "memory_and_recall",
+      "text": {
+        "en": "Which city or village did you grow up in?",
+        "hi": "Aapka bachpan kis shehar ya gaon mein beeta?",
+        "mr": "तुमचे बालपण कोणत्या शहरात किंवा गावात गेले?"
+      }
+    },
+    {
+      "id": "day-20",
+      "category": "memory_and_recall",
+      "text": {
+        "en": "What was your very first job or profession?",
+        "hi": "Aapki sabse pehli naukri ya kaam kya tha?",
+        "mr": "तुमची सर्वात पहिली नोकरी किंवा काम कोणते होते?"
+      }
+    },
+    {
+      "id": "day-21",
+      "category": "memory_and_recall",
+      "text": {
+        "en": "Can you name your favorite festival and why you like it?",
+        "hi": "Aapka pasandida tyohar kaun sa hai aur kyun?",
+        "mr": "तुमचा आवडता सण कोणता आणि तो का आवडतो?"
+      }
+    },
+    {
+      "id": "day-22",
+      "category": "memory_and_recall",
+      "text": {
+        "en": "Do you remember a funny incident from your school days?",
+        "hi": "Kya aapko apne school ke dino ka koi mazedar kissa yaad hai?",
+        "mr": "तुम्हाला शाळेतील दिवसांचा एखादा मजेदार किस्सा आठवतो का?"
+      }
+    },
+    {
+      "id": "day-23",
+      "category": "memory_and_recall",
+      "text": {
+        "en": "Can you tell me which month and year we are in right now?",
+        "hi": "Kya aap bata sakte hain ki abhi kaun sa mahina aur saal chal raha hai?",
+        "mr": "सध्या कोणता महिना आणि वर्ष चालू आहे, हे तुम्ही सांगू शकता का?"
+      }
+    },
+    {
+      "id": "day-24",
+      "category": "mood_and_wellbeing",
+      "text": {
+        "en": "How are you feeling today?",
+        "hi": "Aaj aap kaisa mehsoos kar rahe hain?",
+        "mr": "आज तुम्हाला कसे वाटत आहे?"
+      }
+    },
+    {
+      "id": "day-25",
+      "category": "mood_and_wellbeing",
+      "text": {
+        "en": "Did anything make you smile today?",
+        "hi": "Kya aaj kisi baat ne aapko muskurane par majboor kiya?",
+        "mr": "आज कोणत्या गोष्टीमुळे तुमच्या चेहऱ्यावर हसू आले?"
+      }
+    },
+    {
+      "id": "day-26",
+      "category": "mood_and_wellbeing",
+      "text": {
+        "en": "Are you feeling energetic or a little tired today?",
+        "hi": "Aaj aap khud ko urjawan mehsoos kar rahe hain ya thaka hua?",
+        "mr": "आज तुम्हाला उत्साही वाटत आहे की थोडे थकल्यासारखे वाटत आहे?"
+      }
+    },
+    {
+      "id": "day-27",
+      "category": "mood_and_wellbeing",
+      "text": {
+        "en": "What was the best part of your day so far?",
+        "hi": "Aaj ke din ka sabse accha hissa kaun sa tha?",
+        "mr": "आजच्या दिवसातील सर्वात चांगला भाग कोणता होता?"
+      }
+    },
+    {
+      "id": "day-28",
+      "category": "hobbies_and_interests",
+      "text": {
+        "en": "Do you like listening to music? What kind?",
+        "hi": "Kya aapko gaane sunna pasand hai? Kis tarah ke?",
+        "mr": "तुम्हाला गाणी ऐकायला आवडते का? कोणत्या प्रकारची?"
+      }
+    },
+    {
+      "id": "day-29",
+      "category": "hobbies_and_interests",
+      "text": {
+        "en": "Do you enjoy reading books or listening to stories?",
+        "hi": "Kya aapko kitabein padhna ya kahaniyan sunna pasand hai?",
+        "mr": "तुम्हाला पुस्तके वाचायला किंवा कथा ऐकायला आवडते का?"
+      }
+    },
+    {
+      "id": "day-30",
+      "category": "hobbies_and_interests",
+      "text": {
+        "en": "Do you like animals? Have you ever had a pet?",
+        "hi": "Kya aapko janwar pasand hain? Kya aapne kabhi koi pet pala hai?",
+        "mr": "तुम्हाला प्राणी आवडतात का? तुम्ही कधी एखादा पाळीव प्राणी पाळला आहे का?"
+      }
+    }
+  ]
+}
