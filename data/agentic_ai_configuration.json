@@ -1,0 +1,40 @@
+{
+  "name": "Cogni-Routine constrained agent workflow",
+  "version": 1,
+  "purpose": "Coordinate consented wellbeing conversation, structured observation, and descriptive reporting without autonomous clinical decisions.",
+  "agents": [
+    {
+      "id": "conversation-agent",
+      "role": "Warm multilingual conversation assistant",
+      "input": ["recent_conversation", "current_language", "daily_step"],
+      "tools": ["read_daily_step"],
+      "output": "brief_supportive_reply",
+      "must_not": ["diagnose", "screen", "predict_condition", "change_medication", "expose_raw_scores"]
+    },
+    {
+      "id": "observation-agent",
+      "role": "Cognitive parameter extractor",
+      "input": ["user_message", "measured_timing", "activity_context", "quality_context"],
+      "tools": ["read_activity_context", "read_quality_context"],
+      "output": "structured_observation_json",
+      "consent_required": true,
+      "must_not": ["infer_diagnosis", "label_disease", "invent_measurements"]
+    },
+    {
+      "id": "reporting-agent",
+      "role": "Descriptive reporting assistant",
+      "input": ["validated_observations", "personal_baseline", "quality_flags"],
+      "tools": ["read_report_window", "read_baseline"],
+      "output": "plain_language_summary",
+      "consent_required": true,
+      "must_not": ["alter_scores", "make_clinical_claims", "show_raw_scores_in_patient_view"]
+    }
+  ],
+  "orchestration": {
+    "state_source": "server_authoritative_daily_session",
+    "order": ["conversation-agent", "observation-agent", "reporting-agent"],
+    "external_actions": [],
+    "human_review_required_for": ["health_concern", "persistent_change", "family_sharing", "clinical_follow_up"],
+    "fallback": "retain_local_measured_fields_and_show_a_clear_service_message"
+  }
+}

@@ -39,6 +39,41 @@ const chatTestButton = document.querySelector("#chat-test-button");
 const activityCard = document.querySelector(".activity-card");
 const activitySection = document.querySelector("#activity-section");
 const chatActivityContainer = document.querySelector("#chat-activity-container");
+const menuButton = document.querySelector("#menu-button");
+const appSidebar = document.querySelector("#app-sidebar");
+const darkModeButton = document.querySelector("#dark-mode-button");
+const textSizeDecrease = document.querySelector("#text-size-decrease");
+const textSizeIncrease = document.querySelector("#text-size-increase");
+const textSizeValue = document.querySelector("#text-size-value");
+const savedTheme = localStorage.getItem("cogni-theme");
+if (savedTheme === "dark") document.body.classList.add("dark-mode");
+const textScales = [0.9, 1, 1.1];
+let textScaleIndex = Math.max(0, textScales.indexOf(Number(localStorage.getItem("cogni-text-scale"))));
+if (!textScales.includes(Number(localStorage.getItem("cogni-text-scale")))) textScaleIndex = 1;
+
+const textSizeLabels = {
+  en: { group: "Text size", decrease: "Decrease text size", increase: "Increase text size" },
+  hi: { group: "पाठ का आकार", decrease: "पाठ छोटा करें", increase: "पाठ बड़ा करें" },
+  mr: { group: "मजकूराचा आकार", decrease: "मजकूर लहान करा", increase: "मजकूर मोठा करा" },
+};
+
+function applyTextScale() {
+  const scale = textScales[textScaleIndex];
+  appShell.style.zoom = String(scale);
+  authScreen.style.zoom = String(scale);
+  textSizeValue.textContent = `${Math.round(scale * 100)}%`;
+  textSizeDecrease.disabled = textScaleIndex === 0;
+  textSizeIncrease.disabled = textScaleIndex === textScales.length - 1;
+  localStorage.setItem("cogni-text-scale", String(scale));
+}
+
+function updateTextSizeLabels() {
+  const labels = textSizeLabels[currentLanguage];
+  const controls = document.querySelector(".text-size-controls");
+  controls.setAttribute("aria-label", labels.group);
+  textSizeDecrease.setAttribute("aria-label", labels.decrease);
+  textSizeIncrease.setAttribute("aria-label", labels.increase);
+}
 
 const activityWords = {
   en: ["mango", "key", "river", "garden", "window", "candle", "basket", "bridge", "lemon", "pencil", "cloud", "button"],
@@ -58,7 +93,7 @@ const analysisCopy = {
     symbolTaskCopy: "Choose matching symbols at a comfortable pace.",
     reactionTaskTitle: "Visual response",
     reactionTaskCopy: "Tap when a cue appears; wait when it does not.",
-    selectTask: "Choose an optional activity. Skip any day you like.",
+    selectTask: "Today’s activity is ready. Complete each activity at your own pace.",
     recallPrompt: "Remember these words. They will disappear in five seconds.",
     recallAfter: "Enter the words you remember.",
     fluencyPrompt: "Type as many different animals as you can. Separate words with commas or new lines.",
@@ -75,7 +110,7 @@ const analysisCopy = {
     save: "Save result",
     cancel: "Cancel activity",
     cancelConfirm: "Cancel this activity without saving a result?",
-    complete: (score, max) => `Activity recorded: ${score} of ${max}.`,
+    complete: () => "Activity saved. Nice work.",
     activityNames: {
       word_recall: "Word recall",
       category_fluency: "Category fluency",
@@ -83,32 +118,30 @@ const analysisCopy = {
       symbol_match: "Symbol matching",
       reaction_tap: "Visual response",
     },
-    taskSummary: (name, count, average) => `${name}: ${count} activities · average ${average}%`,
-    trend: (change) => `${change > 0 ? "+" : ""}${change} percentage points from early to later entries`,
-    notEnough: "More entries are needed to compare early and later results.",
-    variability: (value) => `Observed score variation: ${value} percentage points`,
-    averageVariability: (value) => `Average within-activity variation: ${value} percentage points`,
-    noRepeatedScores: "Repeated activity results are needed to summarize score variation.",
-    activitySummary: (count, days) =>
-      `${count} ${count === 1 ? "activity" : "activities"} · ${days} ${days === 1 ? "day" : "days"}`,
-    period: (start, end) => `Last 30 days · ${start} to ${end}`,
-    reportMetrics: (days, messages, responses, attempts, streak, valid) =>
-      `${days} check-in days · ${messages} messages · ${responses} replies · ${attempts} activities · ${streak}-day streak · ${valid} complete days`,
-    baselineReady: (count) => `Personal reference window ready: ${count} complete days. Descriptive tracking only; no clinical alert is produced.`,
-    baselineBuilding: (count) => `Building personal reference: ${count}/10 complete days during days 3–14. The first two days are familiarization.`,
-    baselineInsufficient: (count) => `Reference window ended with ${count}/10 eligible complete days. No clinical alert is produced.`,
+    taskSummary: (name) => `${name}: recent entries recorded`,
+    trend: () => "Your recent pattern is being tracked against your own usual routine.",
+    notEnough: "More entries are needed before a personal pattern can be described.",
+    variability: () => "Your entries show some natural day-to-day variation.",
+    averageVariability: () => "Your entries show some natural day-to-day variation.",
+    noRepeatedScores: "More routine entries are needed before variation can be described.",
+    activitySummary: () => "Your recent activity is recorded here.",
+    period: () => "Your recent routine",
+    reportMetrics: () => "Your recent check-in activity is summarized below.",
+    baselineReady: () => "Your personal reference is ready. This is descriptive wellbeing tracking, not a medical alert.",
+    baselineBuilding: () => "Your personal reference is still being built. Keep checking in when it feels comfortable.",
+    baselineInsufficient: () => "There is not yet enough routine information for a personal reference. No medical alert is produced.",
     reportPrint: "Print / save PDF",
     reportDownload: "Download report PDF",
     noCheckins: "No check-ins recorded",
     noActivities: "No activities recorded",
-    analysisTitles: ["Participation", "Task performance", "Score variability"],
+    analysisTitles: ["Participation", "Activities", "Routine variation"],
     analysisDescriptions: [
       "Counts days with a check-in and activities completed. This is engagement data, not a symptom measure.",
-      "Shows each activity's recorded scores as a percentage of that task's maximum; early and later observations are compared when there are enough entries.",
-      "Shows average within-activity variation for activities with repeated results. Variation alone does not indicate decline or a disorder.",
+      "Shows which activities you have tried as part of your routine.",
+      "Shows that day-to-day variation is normal and is not a diagnosis.",
     ],
     noData: "No saved observations in this period.",
-    reportDisclaimer: "Descriptive tracking only; this is not medical advice or a diagnosis. Share this summary with a clinician as context, not as a test result.",
+    reportDisclaimer: "Descriptive wellbeing tracking only; this is not medical advice or a diagnosis.",
   },
   hi: {
     wordTaskTitle: "शब्द याद करना",
@@ -121,7 +154,7 @@ const analysisCopy = {
     symbolTaskCopy: "आराम से मेल खाते चिन्ह चुनें।",
     reactionTaskTitle: "दृश्य प्रतिक्रिया",
     reactionTaskCopy: "संकेत दिखे तो टैप करें; न दिखे तो प्रतीक्षा करें।",
-    selectTask: "एक वैकल्पिक गतिविधि चुनें। किसी भी दिन इसे छोड़ सकते हैं।",
+    selectTask: "आज की गतिविधि तैयार है। इसे अपनी गति से पूरा करें।",
     recallPrompt: "इन शब्दों को याद रखें। ये पाँच सेकंड में छिप जाएँगे।",
     recallAfter: "जो शब्द याद हों, वे लिखें।",
     fluencyPrompt: "जितने अलग-अलग जानवरों के नाम लिख सकें, लिखें। शब्दों के बीच कॉमा या नई पंक्ति रखें।",
@@ -138,7 +171,7 @@ const analysisCopy = {
     save: "नतीजा सहेजें",
     cancel: "गतिविधि रद्द करें",
     cancelConfirm: "बिना नतीजा सहेजे गतिविधि रद्द करें?",
-    complete: (score, max) => `गतिविधि दर्ज हुई: ${max} में से ${score}।`,
+    complete: () => "गतिविधि सहेजी गई। बहुत अच्छा।",
     activityNames: {
       word_recall: "शब्द याद करना",
       category_fluency: "श्रेणी में शब्द",
@@ -183,7 +216,7 @@ const analysisCopy = {
     symbolTaskCopy: "सोयीच्या गतीने जुळणारी चिन्हे निवडा.",
     reactionTaskTitle: "दृश्य प्रतिसाद",
     reactionTaskCopy: "संकेत दिसल्यावर टॅप करा; नसेल तर थांबा.",
-    selectTask: "ऐच्छिक उपक्रम निवडा. कोणत्याही दिवशी तो वगळू शकता.",
+    selectTask: "आजचा उपक्रम तयार आहे. तो तुमच्या गतीने पूर्ण करा.",
     recallPrompt: "हे शब्द लक्षात ठेवा. पाच सेकंदांत ते दिसेनासे होतील.",
     recallAfter: "आठवणारे शब्द लिहा.",
     fluencyPrompt: "शक्य तितक्या वेगवेगळ्या प्राण्यांची नावे लिहा. शब्द स्वल्पविरामाने किंवा नवीन ओळीने वेगळे करा.",
@@ -200,7 +233,7 @@ const analysisCopy = {
     save: "निकाल जतन करा",
     cancel: "उपक्रम रद्द करा",
     cancelConfirm: "निकाल न जतन करता उपक्रम रद्द करायचा?",
-    complete: (score, max) => `उपक्रम नोंदवला: ${max} पैकी ${score}.`,
+    complete: () => "उपक्रम जतन झाला. छान केले.",
     activityNames: {
       word_recall: "शब्द आठवणे",
       category_fluency: "गटातील शब्द",
@@ -241,9 +274,9 @@ const translations = {
     introEyebrow: "DAILY WELLBEING",
     introTitle: "A calmer way to check in.",
     introCopy: "A familiar place to share how your day is going and try a short memory activity.",
-    eyebrow: "DAILY CHECK-IN",
-    title: "Your daily check-in",
-    assistantName: "Daily check-in",
+    eyebrow: "COGNI CHECKIN",
+    title: "Cogni Checkin",
+    assistantName: "Cogni Checkin",
     opening: "How are you feeling today? Or, if you prefer, we can just chat about anything on your mind.",
     wellTitle: "How are you feeling?",
     wellSubtitle: "A simple check-in",
@@ -260,9 +293,9 @@ const translations = {
     clearConfirm: "Delete saved check-ins and activity results? This cannot be undone.",
     clearSuccess: "Your saved data was deleted.",
     clearError: "Saved data could not be deleted. Please try again.",
-    activityEyebrow: "OPTIONAL DAILY ACTIVITY",
+    activityEyebrow: "TODAY’S ACTIVITY",
     activityTitle: "Daily activities",
-    activityDescription: "Choose a short activity to add an observation to your personal history.",
+    activityDescription: "Complete today’s short activity as part of your routine.",
     activityDuration: "1–2 minutes",
     secondsLeft: (seconds) => `${seconds} seconds`,
     recallPlaceholder: (number) => `Word ${number}`,
@@ -274,19 +307,21 @@ const translations = {
     reportDescription: "A factual summary of check-ins and completed activities.",
     refreshReport: "Refresh",
     reportError: "Activity history could not be loaded.",
+    loadingReport: "Loading your activity history…",
     safety: "Cogni-Routine provides wellbeing tracking and a mild cognitive activity. It is not medical advice or a diagnosis. Talk with a qualified healthcare professional about concerns.",
     greeting: ["Good morning", "Good afternoon", "Good evening"],
     consentRequired: "Please read and accept the data notice before sending a message.",
     loadError: "Could not load this conversation. Check that the app server is running, then refresh.",
     sendError: "Your message was not sent. Check your connection and try again.",
+    retry: "Try again",
   },
   hi: {
     introEyebrow: "रोज़मर्रा का स्वास्थ्य",
     introTitle: "बातचीत का एक शांत तरीका।",
     introCopy: "दिन कैसा बीत रहा है, यह साझा करने और छोटा स्मृति अभ्यास करने की परिचित जगह।",
     eyebrow: "रोज़ की बातचीत",
-    title: "आपकी रोज़ की बातचीत",
-    assistantName: "रोज़ की बातचीत",
+    title: "Cogni Checkin",
+    assistantName: "Cogni Checkin",
     opening: "आज आप कैसा महसूस कर रहे हैं? चाहें तो हम आपकी पसंद की किसी भी बात पर बातचीत कर सकते हैं।",
     wellTitle: "आज कैसा महसूस हो रहा है?",
     wellSubtitle: "एक छोटी-सी बातचीत",
@@ -303,9 +338,9 @@ const translations = {
     clearConfirm: "सहेजी गई बातचीत और गतिविधि नतीजे हटाएँ? इसे वापस नहीं किया जा सकता।",
     clearSuccess: "आपका सहेजा हुआ डेटा हटा दिया गया है।",
     clearError: "सहेजा डेटा हटाया नहीं जा सका। कृपया फिर कोशिश करें।",
-    activityEyebrow: "वैकल्पिक दैनिक गतिविधि",
+    activityEyebrow: "आज की गतिविधि",
     activityTitle: "दैनिक गतिविधियाँ",
-    activityDescription: "अपने व्यक्तिगत इतिहास में एक नतीजा जोड़ने के लिए छोटी गतिविधि चुनें।",
+    activityDescription: "अपनी दिनचर्या के हिस्से के रूप में आज की छोटी गतिविधि पूरी करें।",
     activityDuration: "1–2 मिनट",
     secondsLeft: (seconds) => `${seconds} सेकंड`,
     recallPlaceholder: (number) => `शब्द ${number}`,
@@ -317,19 +352,21 @@ const translations = {
     reportDescription: "बातचीत और पूरी की गई गतिविधियों का तथ्यात्मक सारांश।",
     refreshReport: "ताज़ा करें",
     reportError: "गतिविधि का इतिहास लोड नहीं हो सका।",
+    loadingReport: "आपकी गतिविधि का इतिहास लोड हो रहा है…",
     safety: "Cogni-Routine रोज़मर्रा के स्वास्थ्य में मदद के लिए है। यह चिकित्सा जाँच या निदान नहीं है और यह नहीं बता सकता कि किसी को डिमेंशिया, MCI, डिलीरियम, अवसाद, पार्किंसन रोग या अन्य स्थिति है या नहीं। चिंता होने पर योग्य स्वास्थ्यकर्मी से बात करें।",
     greeting: ["सुप्रभात", "नमस्कार", "शुभ संध्या"],
     consentRequired: "संदेश भेजने से पहले कृपया डेटा सूचना पढ़कर सहमति दें।",
     loadError: "यह बातचीत लोड नहीं हो सकी। सर्वर चालू है या नहीं जाँचें और पेज फिर से खोलें।",
     sendError: "संदेश नहीं भेजा गया। कनेक्शन जाँचकर फिर कोशिश करें।",
+    retry: "फिर कोशिश करें",
   },
   mr: {
     introEyebrow: "रोजचे आरोग्य",
     introTitle: "मनमोकळ्या संवादाची जागा.",
     introCopy: "दिवस कसा जातोय हे सांगण्यासाठी आणि छोटा स्मरण-उपक्रम करण्यासाठी परिचित जागा.",
     eyebrow: "रोजची विचारपूस",
-    title: "तुमची रोजची नोंद",
-    assistantName: "रोजची विचारपूस",
+    title: "Cogni Checkin",
+    assistantName: "Cogni Checkin",
     opening: "आज तुम्हाला कसे वाटत आहे? किंवा तुम्हाला आवडेल त्या कोणत्याही विषयावर आपण बोलू शकतो.",
     wellTitle: "आज कसे वाटत आहे?",
     wellSubtitle: "एक छोटीशी विचारपूस",
@@ -346,9 +383,9 @@ const translations = {
     clearConfirm: "जतन केलेली विचारपूस आणि उपक्रमांचे निकाल हटवायचे? ही कृती पूर्ववत करता येणार नाही.",
     clearSuccess: "तुमचा जतन केलेला डेटा हटवला आहे.",
     clearError: "जतन केलेला डेटा हटवता आला नाही. कृपया पुन्हा प्रयत्न करा.",
-    activityEyebrow: "ऐच्छिक रोजचे उपक्रम",
+    activityEyebrow: "आजचा उपक्रम",
     activityTitle: "दैनिक उपक्रम",
-    activityDescription: "वैयक्तिक इतिहासात नोंद जोडण्यासाठी छोटा उपक्रम निवडा.",
+    activityDescription: "तुमच्या दिनक्रमाचा भाग म्हणून आजचा छोटा उपक्रम पूर्ण करा.",
     activityDuration: "1–2 मिनिटे",
     secondsLeft: (seconds) => `${seconds} सेकंद`,
     recallPlaceholder: (number) => `शब्द ${number}`,
@@ -360,11 +397,13 @@ const translations = {
     reportDescription: "विचारपूस आणि पूर्ण केलेल्या उपक्रमांचा तथ्यात्मक सारांश.",
     refreshReport: "रीफ्रेश करा",
     reportError: "उपक्रमांचा इतिहास लोड करता आला नाही.",
+    loadingReport: "तुमचा उपक्रमांचा इतिहास लोड होत आहे…",
     safety: "Cogni-Routine रोजच्या आरोग्यासाठी मदत करते. ही वैद्यकीय चाचणी किंवा निदान नाही; डिमेन्शिया, MCI, डिलिरियम, नैराश्य, पार्किन्सन रोग किंवा इतर आजार आहेत का हे ती सांगू शकत नाही. काळजी वाटल्यास पात्र आरोग्यतज्ज्ञांशी बोला.",
     greeting: ["शुभ सकाळ", "शुभ दुपार", "शुभ संध्याकाळ"],
     consentRequired: "संदेश पाठवण्यापूर्वी कृपया डेटा सूचना वाचून संमती द्या.",
     loadError: "ही नोंद लोड करता आली नाही. सर्व्हर सुरू आहे का ते तपासून पेज पुन्हा उघडा.",
     sendError: "संदेश पाठवला गेला नाही. कनेक्शन तपासून पुन्हा प्रयत्न करा.",
+    retry: "पुन्हा प्रयत्न करा",
   },
 };
 
@@ -378,6 +417,8 @@ let hasActivityRecords = false;
 let activityStartedAt = 0;
 let activeWords = [];
 let activeTask = null;
+let voiceRecognition = null;
+let voiceListening = false;
 let activeTargets = [];
 let selectedTargets = new Set();
 let activityTimerId = null;
@@ -396,9 +437,36 @@ let reactionState = "waiting";
 let reactionTimeoutIds = [];
 let participantId = null;
 let currentAccount = null;
+let questionShownAt = performance.now();
+let typedCorrections = 0;
+let lastSentText = "";
+let typingStartedAt = null;
+let keypressCount = 0;
+let voiceStartedAt = null;
+let voiceDurationMs = null;
+let dailySession = null;
+let voiceTranscript = "";
+
+const voicePracticeWords = {
+  en: ["river", "garden", "window", "candle", "morning", "silver"],
+  hi: ["नदी", "बगीचा", "खिड़की", "दीपक", "सुबह", "चाँदी"],
+  mr: ["नदी", "बाग", "खिडकी", "दिवा", "सकाळ", "चांदी"],
+};
 
 function currentLocale() {
   return { en: "en-IN", hi: "hi-IN", mr: "mr-IN" }[currentLanguage];
+}
+
+function voicePracticeWord() {
+  if (dailySession?.voice_practice_word) return dailySession.voice_practice_word;
+  const words = voicePracticeWords[currentLanguage];
+  return words[dailySeed() % words.length];
+}
+
+function voiceMatchesPracticeWord(transcript) {
+  return normalizeAnswer(transcript)
+    .split(/\s+/u)
+    .includes(normalizeAnswer(voicePracticeWord()));
 }
 
 function formatGreeting() {
@@ -409,9 +477,12 @@ function formatGreeting() {
 
 function renderLanguage() {
   const copy = translations[currentLanguage];
+  updateTextSizeLabels();
   document.documentElement.lang = currentLanguage;
   document.querySelector("#eyebrow").textContent = copy.eyebrow;
-  document.querySelector("#chat-title").textContent = copy.title;
+  document.querySelector("#chat-title").textContent = currentAccount?.name
+    ? `Welcome, ${currentAccount.name}`
+    : copy.title;
   document.querySelector("#assistant-name").textContent = copy.assistantName;
   document.querySelector("#opening-question").textContent = copy.opening;
   document.querySelector("#input-label").textContent = copy.inputLabel;
@@ -517,11 +588,62 @@ async function enterApplication(account) {
   updateProfileForm(account);
   showView("chat-card");
   renderLanguage();
-  await Promise.all([loadHistory(), loadReport(), loadDailyQuestion()]);
+  appShell.setAttribute("aria-busy", "true");
+  showStatus("Loading your check-in…");
+  const results = await Promise.allSettled([
+    loadHistory(),
+    loadReport(),
+    loadDailyQuestion(),
+    loadDailySession(),
+  ]);
+  appShell.removeAttribute("aria-busy");
+  showStatus("");
+  if (results.some((result) => result.status === "rejected")) {
+    showStatus("Some check-in data could not be loaded.", true);
+    addRetryButton(statusMessage, () => enterApplication(currentAccount));
+  }
+  updateActivityVisibility();
+}
+
+function addRetryButton(container, retry) {
+  container.querySelector(".retry-button")?.remove();
+  const button = document.createElement("button");
+  button.className = "retry-button";
+  button.type = "button";
+  button.textContent = translations[currentLanguage].retry;
+  button.addEventListener("click", retry, { once: true });
+  container.append(" ", button);
+}
+
+async function loadDailySession() {
+  dailySession = await requestJson("/api/sessions/today", { method: "POST" });
+  updateActivityVisibility();
+}
+
+function updateActivityVisibility() {
+  const chatIsVisible = !document.querySelector("#chat-card")?.hidden;
+  const showInChat = hasMessages && chatIsVisible && !activeTask;
+  const showInActivityView = !chatIsVisible;
+  activityOptions.hidden = !(showInChat || showInActivityView);
+  const currentStep = dailySession?.session?.next;
+  const activityReady = currentStep?.type === "game";
+  chatTestButton.hidden = !(showInChat && activityReady);
+  const buttons = [...activityOptions.querySelectorAll("[data-task]")];
+  if (buttons.length && participantId) {
+    const ordered = dailyShuffle(buttons);
+    ordered.forEach((button) => activityOptions.append(button));
+    const currentGame = activityReady ? currentStep.game_id : null;
+    for (const button of buttons) {
+      const buttonGame = button.dataset.task === "spatial_recall"
+        ? "pattern_recall"
+        : button.dataset.task;
+      button.disabled = !activityReady || buttonGame !== currentGame;
+    }
+  }
 }
 
 function showView(viewId) {
-  const viewIds = ["chat-card", "activity-section", "report-section", "profile-section"];
+  const viewIds = ["chat-card", "activity-section", "report-section", "profile-section", "track-section", "about-section"];
   if (viewId === "chat-card" && activityCard.parentElement !== chatActivityContainer) {
     chatActivityContainer.append(activityCard);
   } else if (viewId === "activity-section" && activityCard.parentElement !== activitySection) {
@@ -534,12 +656,68 @@ function showView(viewId) {
   for (const link of document.querySelectorAll("[data-view]")) {
     link.toggleAttribute("aria-current", link.dataset.view === viewId);
   }
+  updateActivityVisibility();
+  appShell.classList.remove("sidebar-open");
+  menuButton?.setAttribute("aria-expanded", "false");
   if (viewId === "report-section") {
     loadReport().catch((error) => {
+      reportCard.setAttribute("aria-busy", "false");
       reportCard.textContent = translations[currentLanguage].reportError;
+      addRetryButton(reportCard, () => loadReport().catch((retryError) => {
+        reportCard.setAttribute("aria-busy", "false");
+        reportCard.textContent = translations[currentLanguage].reportError;
+        addRetryButton(reportCard, () => showView("report-section"));
+        console.error("Unable to retry activity report:", retryError);
+      }));
       console.error("Unable to load activity report:", error);
     });
   }
+  if (viewId === "track-section" || viewId === "about-section") {
+    loadReport().catch((error) => {
+      const target = viewId === "track-section"
+        ? document.querySelector("#track-card")
+        : document.querySelector("#about-report-grid");
+      target.textContent = translations[currentLanguage].reportError;
+      addRetryButton(target, () => showView(viewId));
+      console.error(`Unable to load ${viewId} data:`, error);
+    });
+  }
+
+}
+
+function activityDifficulty() {
+  return dailySeed() % 4;
+}
+
+function activityWordCount() {
+  return 3 + activityDifficulty();
+}
+
+function sessionEventId() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function dailySeed() {
+  const today = new Date().toLocaleDateString("en-CA");
+  const input = `${participantId || "guest"}:${today}`;
+  let hash = 2166136261;
+  for (const character of input) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function dailyShuffle(items) {
+  const result = [...items];
+  let seed = dailySeed();
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    const swapIndex = seed % (index + 1);
+    [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
+  }
+  return result;
 }
 
 async function loadDailyQuestion() {
@@ -547,10 +725,41 @@ async function loadDailyQuestion() {
   if (!response.ok) throw new Error(`Daily question request failed (${response.status}).`);
   const question = await response.json();
   document.querySelector("#opening-question").textContent = question.text;
+  questionShownAt = performance.now();
+}
+
+async function initializeTelegramApplication() {
+  const telegram = window.Telegram?.WebApp;
+  if (!telegram?.initData) return false;
+  telegram.ready();
+  telegram.expand();
+  const consented = window.confirm(
+    "Allow Cogni-Routine to save your profile, check-ins, and activity results in this app? You can delete them later.",
+  );
+  if (!consented) {
+    showAuthError(new Error("Consent is required before Telegram sign-in."), "Telegram sign-in was cancelled.");
+    return true;
+  }
+  try {
+    await requestJson("/api/auth/telegram", {
+      method: "POST",
+      body: JSON.stringify({
+        init_data: telegram.initData,
+        consented: true,
+        language: languageSelect.value,
+        name: telegram.initDataUnsafe?.user?.first_name || "Telegram participant",
+      }),
+    });
+    await enterApplication(await requestJson("/api/auth/me"));
+  } catch (error) {
+    showAuthError(error, "Telegram sign-in failed. Please try again.");
+  }
+  return true;
 }
 
 async function initializeApplication() {
   renderLanguage();
+  if (await initializeTelegramApplication()) return;
   try {
     const account = await requestJson("/api/auth/me");
     await enterApplication(account);
@@ -639,13 +848,25 @@ async function loadHistory() {
   const history = await response.json();
   chatLog.querySelectorAll(".conversation-message, .assistant-followup").forEach((node) => node.remove());
   hasMessages = history.messages.length > 0;
+  updateActivityVisibility();
   for (const message of history.messages) renderMessage(message);
   renderLanguage();
 }
 
 async function loadReport() {
-  const response = await fetch(`/api/reports/${participantId}`);
-  if (!response.ok) throw new Error(`Report request failed (${response.status}).`);
+  reportCard.setAttribute("aria-busy", "true");
+  reportCard.textContent = translations[currentLanguage].loadingReport;
+  let response;
+  try {
+    response = await fetch(`/api/reports/${participantId}`);
+  } catch (error) {
+    reportCard.setAttribute("aria-busy", "false");
+    throw error;
+  }
+  if (!response.ok) {
+    reportCard.setAttribute("aria-busy", "false");
+    throw new Error(`Report request failed (${response.status}).`);
+  }
 
   const report = await response.json();
   const { attempts } = report;
@@ -677,6 +898,21 @@ async function loadReport() {
       ? copy.baselineBuilding(report.baseline_days)
       : copy.baselineInsufficient(report.baseline_days);
   reportCard.append(baseline);
+  const baselineAnalysis = report.baseline_analysis || {};
+  const baselineNote = document.createElement("p");
+  baselineNote.className = "baseline-status";
+  baselineNote.textContent = baselineAnalysis.persistent_change
+    ? "Your recent routine differs from your usual pattern in more than one area. This is not a diagnosis; consider discussing persistent changes with a qualified professional."
+    : baselineAnalysis.calibration?.observed_domains
+      ? "Your recent activity is being compared with your own early-use pattern. This is descriptive tracking, not a diagnosis."
+      : "More repeated activity data is needed to build a personal reference pattern.";
+  reportCard.append(baselineNote);
+  if (baselineAnalysis.data_quality?.length) {
+    const quality = document.createElement("p");
+    quality.className = "report-note";
+    quality.textContent = `Data quality notes: ${baselineAnalysis.data_quality.join("; ")}.`;
+    reportCard.append(quality);
+  }
 
   const analyzers = document.createElement("div");
   analyzers.className = "analysis-grid";
@@ -700,7 +936,7 @@ async function loadReport() {
     ? repeatedVariations.reduce((sum, variation) => sum + variation, 0) / repeatedVariations.length
     : null;
   const metrics = [
-    `${report.checkin_days} / 30`,
+    "Your check-ins are recorded",
     copy.activitySummary(attempts.length, activityDays),
     averageVariation === null
       ? copy.noRepeatedScores
@@ -725,6 +961,9 @@ async function loadReport() {
     empty.className = "report-empty";
     empty.textContent = copy.noData;
     reportCard.append(empty);
+    reportCard.setAttribute("aria-busy", "false");
+    renderTrack(report);
+    renderAboutReport(report);
     return;
   }
 
@@ -734,59 +973,20 @@ async function loadReport() {
   for (const taskName of taskNames) {
     const rows = grouped.get(taskName) ?? [];
     if (rows.length === 0) continue;
-    const percentages = rows.map((attempt) => (attempt.score / attempt.max_score) * 100);
-    const average = percentages.reduce((sum, score) => sum + score, 0) / percentages.length;
-    const sorted = [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at));
     const item = document.createElement("article");
     item.className = "task-result";
     const heading = document.createElement("h3");
     heading.textContent = copy.activityNames[taskName];
     const stat = document.createElement("p");
-    stat.textContent = copy.taskSummary(
-      copy.activityNames[taskName],
-      rows.length,
-      average.toFixed(0),
-    );
+    stat.textContent = copy.taskSummary(copy.activityNames[taskName], rows.length);
     item.append(heading, stat);
-
-    const bars = document.createElement("div");
-    bars.className = "trend-bars";
-    bars.setAttribute("role", "img");
-    bars.setAttribute("aria-label", `${copy.activityNames[taskName]} results, each shown as a percentage of the task maximum`);
-    for (const attempt of sorted) {
-      const barWrap = document.createElement("div");
-      barWrap.className = "trend-bar-wrap";
-      const bar = document.createElement("div");
-      bar.className = "trend-bar";
-      bar.style.height = `${Math.max(4, (attempt.score / attempt.max_score) * 100)}%`;
-      bar.title = `${attempt.score}/${attempt.max_score}`;
-      const label = document.createElement("span");
-      label.textContent = new Date(attempt.created_at).toLocaleDateString(currentLocale(), {
-        day: "numeric",
-        month: "short",
-      });
-      barWrap.append(bar, label);
-      bars.append(barWrap);
-    }
-    item.append(bars);
 
     const trend = document.createElement("p");
     trend.className = "trend-summary";
-    if (sorted.length >= 4) {
-      const midpoint = Math.floor(sorted.length / 2);
-      const early = sorted.slice(0, midpoint).map((attempt) => (attempt.score / attempt.max_score) * 100);
-      const late = sorted.slice(midpoint).map((attempt) => (attempt.score / attempt.max_score) * 100);
-      const earlyAverage = early.reduce((sum, score) => sum + score, 0) / early.length;
-      const lateAverage = late.reduce((sum, score) => sum + score, 0) / late.length;
-      trend.textContent = copy.trend(Number((lateAverage - earlyAverage).toFixed(1)));
-    } else {
-      trend.textContent = copy.notEnough;
-    }
-    const mean = percentages.reduce((sum, score) => sum + score, 0) / percentages.length;
-    const variance = percentages.reduce((sum, score) => sum + (score - mean) ** 2, 0) / percentages.length;
+    trend.textContent = copy.trend();
     const variation = document.createElement("p");
     variation.className = "trend-variation";
-    variation.textContent = copy.variability(Math.sqrt(variance).toFixed(1));
+    variation.textContent = copy.variability();
     item.append(trend, variation);
     taskResults.append(item);
   }
@@ -796,6 +996,73 @@ async function loadReport() {
   note.className = "report-note";
   note.textContent = copy.reportDisclaimer;
   reportCard.append(note);
+  reportCard.setAttribute("aria-busy", "false");
+  renderTrack(report);
+  renderAboutReport(report);
+}
+
+function renderTrack(report) {
+  const target = document.querySelector("#track-card");
+  if (!target) return;
+  target.replaceChildren();
+  const days = report.daily.slice(-30);
+  const completed = days.filter((day) => day.complete).length;
+  const partial = days.filter((day) => day.task_count > 0 && !day.complete).length;
+  const summary = document.createElement("div");
+  summary.className = "track-summary";
+  [
+    [completed, "days with all activities"],
+    [partial, "days started but not complete"],
+    [`${report.current_streak}`, "current complete-day streak"],
+  ].forEach(([value, label]) => {
+    const stat = document.createElement("div");
+    stat.className = "track-stat";
+    const strong = document.createElement("strong");
+    strong.textContent = value;
+    const span = document.createElement("span");
+    span.textContent = label;
+    stat.append(strong, span);
+    summary.append(stat);
+  });
+  const dayGrid = document.createElement("div");
+  dayGrid.className = "track-days";
+  days.forEach((day) => {
+    const item = document.createElement("div");
+    item.className = `track-day ${day.complete ? "complete" : day.task_count ? "partial" : ""}`;
+    const date = new Date(`${day.date}T00:00:00`);
+    const name = document.createElement("strong");
+    name.textContent = date.toLocaleDateString(currentLocale(), { weekday: "short" });
+    const dateLabel = document.createElement("small");
+    dateLabel.textContent = date.toLocaleDateString(currentLocale(), { month: "short", day: "numeric" });
+    const status = document.createElement("span");
+    status.textContent = day.complete ? "Complete" : day.task_count ? `${day.task_count}/5 done` : "Not started";
+    item.setAttribute("aria-label", `${day.date}: ${status.textContent}`);
+    item.append(name, dateLabel, status);
+    dayGrid.append(item);
+  });
+  target.append(summary, dayGrid);
+}
+
+function renderAboutReport(report) {
+  const target = document.querySelector("#about-report-grid");
+  if (!target) return;
+  target.replaceChildren();
+  const activeDays = report.daily.filter((day) => day.task_count > 0).length;
+  const activityDays = report.daily.filter((day) => day.task_count === 5).length;
+  [
+    [activeDays, "active days in the last 30 days"],
+    [activityDays, "days with all five activities"],
+    [report.baseline_ready ? "Ready" : "Building", "personal reference status"],
+  ].forEach(([value, label]) => {
+    const stat = document.createElement("div");
+    stat.className = "about-report-stat";
+    const strong = document.createElement("strong");
+    strong.textContent = value;
+    const span = document.createElement("span");
+    span.textContent = label;
+    stat.append(strong, span);
+    target.append(stat);
+  });
 }
 
 function resetActivity() {
@@ -884,6 +1151,12 @@ function startActivity(taskName) {
     showStatus(translations[currentLanguage].activityConsent, true);
     return;
   }
+  const expectedGame = dailySession?.session?.next?.game_id;
+  const normalizedTask = taskName === "spatial_recall" ? "pattern_recall" : taskName;
+  if (dailySession?.session?.next?.type === "game" && expectedGame !== normalizedTask) {
+    showStatus("Please complete the current activity first.", true);
+    return;
+  }
 
   showStatus("");
   activeTask = taskName;
@@ -902,7 +1175,21 @@ function startActivity(taskName) {
   wordDisplay.replaceChildren();
 
   if (taskName === "word_recall") {
-    activeWords = shuffled(activityWords[currentLanguage]).slice(0, 3);
+    activeWords = dailyShuffle(activityWords[currentLanguage]).slice(0, activityWordCount());
+    const recallFields = recallForm.querySelector(".recall-fields");
+    recallFields.replaceChildren();
+    activeWords.forEach((_, index) => {
+      const label = document.createElement("label");
+      const hint = document.createElement("span");
+      hint.className = "sr-only";
+      hint.textContent = `Word ${index + 1}`;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.maxLength = 40;
+      input.autocomplete = "off";
+      label.append(hint, input);
+      recallFields.append(label);
+    });
     document.querySelector("#activity-step").textContent = copy.recallPrompt;
     for (const word of activeWords) {
       const chip = document.createElement("span");
@@ -931,7 +1218,7 @@ function startActivity(taskName) {
     });
   } else if (taskName === "spatial_recall") {
     document.querySelector("#activity-step").textContent = copy.spatialPrompt;
-    activeTargets = shuffled(Array.from({ length: 16 }, (_, index) => index)).slice(0, 3);
+    activeTargets = dailyShuffle(Array.from({ length: 16 }, (_, index) => index)).slice(0, 3);
     spatialGrid.hidden = false;
     renderSpatialGrid(true);
     startCountdown(5, () => {
@@ -945,9 +1232,10 @@ function startActivity(taskName) {
     symbolGame.hidden = false;
     document.querySelector("#activity-step").textContent = copy.symbolPrompt;
     const symbols = ["○", "△", "□", "◇"];
-    symbolRounds = Array.from({ length: 8 }, () => {
-      const target = symbols[Math.floor(Math.random() * symbols.length)];
-      return { target, choices: shuffled(symbols) };
+    const seedSymbols = dailyShuffle(symbols);
+    symbolRounds = Array.from({ length: 8 + activityDifficulty() * 2 }, (_, index) => {
+      const target = seedSymbols[index % seedSymbols.length];
+      return { target, choices: dailyShuffle(symbols) };
     });
     symbolRoundIndex = 0;
     symbolCorrect = 0;
@@ -957,7 +1245,11 @@ function startActivity(taskName) {
     reactionGame.hidden = false;
     document.querySelector("#activity-step").textContent = copy.reactionPrompt;
     document.querySelector("#reaction-instructions").textContent = copy.reactionPrompt;
-    reactionPlan = shuffled([true, true, true, true, true, false, false, false]);
+    const level = activityDifficulty();
+    reactionPlan = dailyShuffle([
+      ...Array(5 + level).fill(true),
+      ...Array(3 + level).fill(false),
+    ]);
     reactionIndex = 0;
     reactionCorrect = 0;
     reactionFalseTaps = 0;
@@ -1055,7 +1347,13 @@ function cancelActivity() {
 }
 
 function normalizeAnswer(value) {
-  return value.trim().normalize("NFKC").toLocaleLowerCase();
+  return value
+    .trim()
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
 }
 
 async function saveActivityResult(event) {
@@ -1091,14 +1389,16 @@ async function saveActivityResult(event) {
     maxScore = 3;
     taskMetrics.correct_positions = score;
   } else if (activeTask === "symbol_match") {
-    score = symbolCorrect;
+    score = Math.min(8, symbolCorrect);
     maxScore = 8;
     taskMetrics.correct_matches = symbolCorrect;
+    taskMetrics.round_count = symbolRounds.length;
     taskMetrics.median_response_ms = median(symbolResponseTimes);
   } else {
-    score = reactionCorrect;
+    score = Math.min(8, reactionCorrect);
     maxScore = 8;
     taskMetrics.correct_responses = reactionCorrect;
+    taskMetrics.round_count = reactionPlan.length;
     taskMetrics.median_response_ms = median(reactionTimes);
     taskMetrics.missed_cues = reactionMisses;
     taskMetrics.early_taps = reactionFalseTaps;
@@ -1133,9 +1433,24 @@ async function saveActivityResult(event) {
         consented: consentCheckbox.checked,
           };
     await requestJson(url, { method: "POST", body: JSON.stringify(payload) });
+    if (dailySession?.session?.next?.type === "game") {
+      dailySession = await requestJson(
+        `/api/sessions/${dailySession.session.date}/games/${activeTask === "spatial_recall" ? "pattern_recall" : activeTask}`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            skipped: false,
+            result: { score, max_score: maxScore, duration_seconds: durationSeconds, metrics: taskMetrics },
+            client_event_id: sessionEventId(),
+          }),
+        },
+      );
+    }
+    const completedActivities = Number(localStorage.getItem("cogni-completed-activities") || "0");
+    localStorage.setItem("cogni-completed-activities", String(completedActivities + 1));
     activityPlay.hidden = true;
     activityIntro.hidden = false;
-    activityResult.textContent = analysisCopy[currentLanguage].complete(score, maxScore);
+    activityResult.textContent = analysisCopy[currentLanguage].complete();
     activityResult.hidden = false;
     recallForm.reset();
     activeWords = [];
@@ -1143,8 +1458,11 @@ async function saveActivityResult(event) {
     selectedTargets.clear();
     activeTask = null;
     resetActivity();
+    updateActivityVisibility();
     activityResult.hidden = false;
-    activityResult.textContent = analysisCopy[currentLanguage].complete(score, maxScore);
+    activityResult.textContent = analysisCopy[currentLanguage].complete();
+    await loadDailyQuestion();
+    updateActivityVisibility();
     loadReport().catch((error) => {
       reportCard.textContent = translations[currentLanguage].reportError;
       console.error("Unable to refresh activity report:", error);
@@ -1171,6 +1489,7 @@ async function sendMessage(message) {
   }
 
   sendButton.disabled = true;
+  const typingIndicator = renderTypingIndicator();
   showStatus("");
   try {
     const response = await fetch("/api/chat", {
@@ -1181,21 +1500,98 @@ async function sendMessage(message) {
         language: currentLanguage,
         text,
         consented: consentCheckbox.checked,
+        response_time_ms: Math.max(0, Math.round(performance.now() - questionShownAt)),
+        typo_frequency: typedCorrections,
+        repetition_count: text === lastSentText ? 1 : 0,
+        typing_duration_ms: typingStartedAt === null
+          ? null
+          : Math.max(0, Math.round(performance.now() - typingStartedAt)),
+        keypress_count: keypressCount,
+        voice_duration_ms: voiceDurationMs,
+        voice_pause_count: null,
+        target_word_match: voiceTranscript ? voiceMatchesPracticeWord(voiceTranscript) : null,
+        speech_capture_quality: voiceTranscript
+          ? (voiceMatchesPracticeWord(voiceTranscript) ? "matched" : "not_matched")
+          : "unavailable",
+        sleep_quality: document.querySelector("#sleep-quality").value
+          ? Number(document.querySelector("#sleep-quality").value)
+          : null,
+        illness_today: document.querySelector("#illness-today").value === ""
+          ? null
+          : document.querySelector("#illness-today").value === "true",
+        device_type: /Mobi|Android/i.test(navigator.userAgent) ? "phone" : "desktop",
       }),
     });
-    if (!response.ok) throw new Error(`Chat request failed (${response.status}).`);
+    if (!response.ok) {
+      let detail = "";
+      try {
+        const errorPayload = await response.json();
+        detail = typeof errorPayload.detail === "string" ? ` ${errorPayload.detail}` : "";
+      } catch {
+        detail = "";
+      }
+      throw new Error(`Chat request failed (${response.status}).${detail}`);
+    }
     const result = await response.json();
+    typingIndicator.remove();
+    if (dailySession?.session?.next?.type === "ask") {
+      dailySession = await requestJson(
+        `/api/sessions/${dailySession.session.date}/messages`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            text,
+            latency_ms: Math.max(0, Math.round(performance.now() - questionShownAt)),
+            typing: {
+              duration_ms: typingStartedAt === null
+                ? null
+                : Math.max(0, Math.round(performance.now() - typingStartedAt)),
+              keypress_count: keypressCount,
+              corrections: typedCorrections,
+            },
+            client_event_id: sessionEventId(),
+          }),
+        },
+      );
+    }
     hasMessages = true;
+    updateActivityVisibility();
     renderMessage(result.user_message);
     renderMessage(result.assistant_message);
     messageInput.value = "";
+    lastSentText = text;
+    typedCorrections = 0;
+    typingStartedAt = null;
+    keypressCount = 0;
+    voiceDurationMs = null;
+    voiceTranscript = "";
+    questionShownAt = performance.now();
     messageInput.focus();
   } catch (error) {
+    typingIndicator.remove();
     showStatus(error.message || translations[currentLanguage].sendError, true);
     console.error("Unable to send check-in message:", error);
   } finally {
     renderLanguage();
   }
+}
+
+function renderTypingIndicator() {
+  const article = document.createElement("article");
+  article.className = "message assistant-message typing-message";
+  article.setAttribute("aria-label", "Cogni Checkin is typing");
+  article.innerHTML = `
+    <div class="assistant-avatar" aria-hidden="true">+</div>
+    <div class="message-content">
+      <p class="message-sender">Cogni Checkin</p>
+      <div class="bubble typing-bubble" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  `;
+  chatLog.append(article);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return article;
 }
 
 async function updateGeminiConsent() {
@@ -1225,15 +1621,28 @@ async function generateAiReport() {
     aiReportSummary.replaceChildren();
     const heading = document.createElement("h3");
     heading.textContent = "Agent reflection";
-    const summaryText = document.createElement("p");
-    summaryText.textContent = summary.summary;
-    aiReportSummary.append(heading, summaryText);
-    for (const [title, entries] of [["Positive observations", summary.positives], ["Worth discussing", summary.watch_items]]) {
+    aiReportSummary.append(heading);
+    const sections = summary.patient_overview
+      ? [
+          ["Overview", summary.patient_overview],
+          ["Cognitive summary", summary.cognitive_summary],
+          ["Alerts and flags", summary.alerts_and_flags],
+          ["Recommendations", summary.recommendations],
+        ]
+      : [
+          ["Summary", { text: summary.summary }],
+          ["Positive observations", summary.positives],
+          ["Worth discussing", summary.watch_items],
+        ];
+    for (const [title, entries] of sections) {
       const section = document.createElement("section");
       const subheading = document.createElement("h4");
       subheading.textContent = title;
       const list = document.createElement("ul");
-      for (const entry of entries) {
+      const normalizedEntries = Array.isArray(entries)
+        ? entries
+        : Object.entries(entries).map(([key, value]) => `${key.replaceAll("_", " ")}: ${value}`);
+      for (const entry of normalizedEntries) {
         const item = document.createElement("li");
         item.textContent = entry;
         list.append(item);
@@ -1267,23 +1676,75 @@ async function saveProfile(event) {
   }
 }
 
+function updateThemeButton() {
+  const dark = document.body.classList.contains("dark-mode");
+  darkModeButton?.setAttribute("aria-pressed", String(dark));
+  darkModeButton?.setAttribute("aria-label", dark ? "Use light mode" : "Enable dark mode");
+  if (darkModeButton) darkModeButton.textContent = dark ? "☀" : "◐";
+}
+
 function startVoiceInput() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     showStatus("Voice input is not available in this browser. You can type instead.", true);
     return;
   }
+  if (voiceListening && voiceRecognition) {
+    voiceRecognition.stop();
+    return;
+  }
   const recognition = new SpeechRecognition();
+  voiceRecognition = recognition;
+  voiceListening = true;
+  const voiceButton = document.querySelector("#voice-button");
+  voiceButton.setAttribute("aria-pressed", "true");
+  voiceButton.classList.add("listening");
+  voiceButton.setAttribute("aria-label", "Stop voice input");
+  voiceStartedAt = performance.now();
+  voiceTranscript = "";
   recognition.lang = { en: "en-IN", hi: "hi-IN", mr: "mr-IN" }[currentLanguage];
-  recognition.interimResults = false;
+  recognition.interimResults = true;
   recognition.maxAlternatives = 1;
   recognition.onresult = (event) => {
-    messageInput.value = `${messageInput.value}${messageInput.value ? " " : ""}${event.results[0][0].transcript}`;
+    voiceDurationMs = Math.max(0, Math.round(performance.now() - voiceStartedAt));
+    const transcript = [...event.results]
+      .filter((result) => result.isFinal)
+      .map((result) => result[0].transcript)
+      .join(" ")
+      .trim();
+    if (!transcript) return;
+    voiceTranscript = transcript;
+    messageInput.value = `${messageInput.value}${messageInput.value ? " " : ""}${transcript}`;
     messageInput.focus();
-    showStatus("Voice transcription ready. Review it, then send when you choose.");
+    const target = voicePracticeWord();
+    showStatus(
+      `Voice transcription ready. Practice phrase word: “${target}”. Review it, then send when you choose.`,
+    );
   };
-  recognition.onerror = () => showStatus("Voice input could not be captured. You can type instead.", true);
-  recognition.start();
+  recognition.onerror = (event) => {
+    voiceDurationMs = null;
+    const message = event.error === "not-allowed"
+      ? "Microphone permission was denied. You can type instead."
+      : "Voice input could not be captured. You can type instead.";
+    showStatus(message, true);
+  };
+  recognition.onend = () => {
+    voiceListening = false;
+    voiceRecognition = null;
+    voiceButton.removeAttribute("aria-pressed");
+    voiceButton.classList.remove("listening");
+    voiceButton.setAttribute("aria-label", "Speak a message");
+  };
+  try {
+    recognition.start();
+    showStatus(
+      `Listening… say the practice word “${voicePracticeWord()}”, then press the microphone button to stop.`,
+    );
+  } catch (error) {
+    recognition.onend();
+    showStatus("Voice input could not start. You can type instead.", true);
+    console.error("Unable to start voice input:", error);
+  }
 }
 
 function speakGreeting() {
@@ -1306,20 +1767,16 @@ async function deleteConversation() {
   clearButton.disabled = true;
   showStatus("");
   try {
-    const response = await fetch(`/api/conversations/${participantId}`, { method: "DELETE" });
+    const response = await fetch(`/api/conversations/${participantId}/messages`, { method: "DELETE" });
     if (!response.ok) throw new Error(`Delete request failed (${response.status}).`);
     chatLog.querySelectorAll(".conversation-message, .assistant-followup").forEach((node) => node.remove());
     hasMessages = false;
     hasActivityRecords = false;
-    consentCheckbox.checked = false;
-    aiConsentCheckbox.checked = false;
     resetActivity();
     reportCard.textContent = analysisCopy[currentLanguage].noData;
-    currentAccount = null;
-    participantId = null;
-    appShell.hidden = true;
-    authScreen.hidden = false;
-    showAuthError(new Error("Your account and saved data were deleted."), "");
+    updateActivityVisibility();
+    clearButton.disabled = true;
+    showStatus("Current chat cleared. Your account and activity history remain saved.");
   } catch (error) {
     showStatus(translations[currentLanguage].clearError, true);
     console.error("Unable to delete conversation:", error);
@@ -1374,6 +1831,31 @@ aiConsentCheckbox.addEventListener("change", updateGeminiConsent);
 profileForm.addEventListener("submit", saveProfile);
 document.querySelector("#generate-ai-report").addEventListener("click", generateAiReport);
 document.querySelector("#voice-button").addEventListener("click", startVoiceInput);
+darkModeButton?.addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+  localStorage.setItem("cogni-theme", document.body.classList.contains("dark-mode") ? "dark" : "light");
+  updateThemeButton();
+});
+updateThemeButton();
+menuButton?.addEventListener("click", () => {
+  const open = appShell.classList.toggle("sidebar-open");
+  menuButton.setAttribute("aria-expanded", String(open));
+  if (open) appSidebar.querySelector("a")?.focus();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !appShell.classList.contains("sidebar-open")) return;
+  appShell.classList.remove("sidebar-open");
+  menuButton.setAttribute("aria-expanded", "false");
+  menuButton.focus();
+});
+textSizeDecrease?.addEventListener("click", () => {
+  textScaleIndex = Math.max(0, textScaleIndex - 1);
+  applyTextScale();
+});
+textSizeIncrease?.addEventListener("click", () => {
+  textScaleIndex = Math.min(textScales.length - 1, textScaleIndex + 1);
+  applyTextScale();
+});
 chatTestButton.addEventListener("click", () => {
   showView("chat-card");
   activityCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1389,6 +1871,11 @@ link.addEventListener("click", (event) => {
 messageForm.addEventListener("submit", (event) => {
   event.preventDefault();
   sendMessage(messageInput.value);
+});
+messageInput.addEventListener("keydown", (event) => {
+  if (typingStartedAt === null) typingStartedAt = performance.now();
+  keypressCount += 1;
+  if (event.key === "Backspace" || event.key === "Delete") typedCorrections += 1;
 });
 
 clearButton.addEventListener("click", deleteConversation);
@@ -1419,7 +1906,14 @@ spatialGrid.addEventListener("click", (event) => {
 });
 document.querySelector("#refresh-report").addEventListener("click", () => {
   loadReport().catch((error) => {
+    reportCard.setAttribute("aria-busy", "false");
     reportCard.textContent = translations[currentLanguage].reportError;
+    addRetryButton(reportCard, () => loadReport().catch((retryError) => {
+      reportCard.setAttribute("aria-busy", "false");
+      reportCard.textContent = translations[currentLanguage].reportError;
+      addRetryButton(reportCard, () => document.querySelector("#refresh-report").click());
+      console.error("Unable to retry activity report:", retryError);
+    }));
     console.error("Unable to load activity report:", error);
   });
 });
@@ -1447,6 +1941,57 @@ document.querySelector("#download-report").addEventListener("click", async (even
     button.disabled = false;
   }
 });
+document.querySelector("#download-daily-report").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  const today = new Date().toLocaleDateString("en-CA");
+  try {
+    const response = await fetch(`/api/reports/${participantId}/daily/${today}/pdf`);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.detail || `Daily report download failed (${response.status}).`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `cogni-routine-${today}.pdf`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) {
+    showStatus(error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+});
+document.querySelector("#download-weekly-report").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  const weekEnd = new Date().toLocaleDateString("en-CA");
+  try {
+    const response = await fetch(`/api/reports/${participantId}/weekly/${weekEnd}/pdf`);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.detail || `Weekly report download failed (${response.status}).`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `cogni-routine-week-${weekEnd}.pdf`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) {
+    showStatus(error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+});
 document.querySelector("#print-report").addEventListener("click", () => window.print());
 
 initializeApplication();
+applyTextScale();

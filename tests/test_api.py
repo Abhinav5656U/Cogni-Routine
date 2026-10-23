@@ -1,6 +1,10 @@
+import json
+import hashlib
+import hmac
 import tempfile
 import unittest
 from pathlib import Path
+from urllib.parse import urlencode
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -80,6 +84,108 @@ class ChatApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(self.client.get("/api/auth/me").status_code, 200)
+
+    def test_liveness_and_readiness_endpoints(self) -> None:
+        self.assertEqual(self.client.get("/healthz").json(), {"status": "ok"})
+        response = self.client.get("/readyz")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ready"})
+
+    def test_agent_workflow_is_consent_gated_and_does_not_expose_keys(self) -> None:
+        response = self.client.get("/api/agent/workflow")
+        self.assertEqual(response.status_code, 200)
+        workflow = response.json()
+        self.assertFalse(workflow["consented"])
+        self.assertEqual(
+            workflow["order"],
+            ["conversation-agent", "observation-agent", "reporting-agent"],
+        )
+        self.assertEqual(workflow["external_actions"], [])
+        self.assertNotIn("api_key", json.dumps(workflow))
+
+        self.consent_to_gemini()
+        consented = self.client.get("/api/agent/workflow").json()
+        self.assertTrue(consented["consented"])
+
+    def test_agent_workflow_requires_authentication(self) -> None:
+        self.client.post("/api/auth/logout")
+        response = self.client.get("/api/agent/workflow")
+        self.assertEqual(response.status_code, 401)
+
+    def test_security_headers_and_same_origin_protection(self) -> None:
+        response = self.client.get("/api/auth/me")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["x-content-type-options"], "nosniff")
+        self.assertEqual(response.headers["x-frame-options"], "DENY")
+        self.assertEqual(response.headers["cache-control"], "no-store")
+        self.assertIn("x-request-id", response.headers)
+        blocked = self.client.post(
+            "/api/auth/logout",
+            headers={"Origin": "https://untrusted.example"},
+        )
+        self.assertEqual(blocked.status_code, 403)
+
+    def test_telegram_init_data_requires_valid_signature_and_consent(self) -> None:
+        auth_date = str(int(main.datetime.now(main.timezone.utc).timestamp()))
+        fields = {
+            "auth_date": auth_date,
+            "user": json.dumps({"id": 998877, "first_name": "Telegram"}, separators=(",", ":")),
+        }
+        bot_token = "telegram-test-token"
+        check_string = "\n".join(f"{key}={fields[key]}" for key in sorted(fields))
+        secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
+        fields["hash"] = hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
+        with patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": bot_token}):
+            denied = self.client.post(
+                "/api/auth/telegram",
+                json={"init_data": urlencode(fields)},
+            )
+            self.assertEqual(denied.status_code, 400)
+            signed_in = self.client.post(
+                "/api/auth/telegram",
+                json={"init_data": urlencode(fields), "consented": True},
+            )
+        self.assertEqual(signed_in.status_code, 200)
+        self.assertEqual(signed_in.json()["name"], "Telegram participant")
+        self.assertEqual(self.client.get("/api/auth/me").status_code, 200)
+        fields["hash"] = "invalid"
+        with patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": bot_token}):
+            invalid = self.client.post(
+                "/api/auth/telegram",
+                json={"init_data": urlencode(fields), "consented": True},
+            )
+        self.assertEqual(invalid.status_code, 401)
+
+    def test_telegram_webhook_requires_secret_and_handles_start(self) -> None:
+        with patch.dict(
+            "os.environ",
+            {
+                "TELEGRAM_BOT_TOKEN": "telegram-test-token",
+                "TELEGRAM_WEBHOOK_SECRET": "webhook-secret",
+                "COGNI_PUBLIC_URL": "https://demo.example",
+            },
+        ), patch.object(main, "_telegram_api_call") as telegram_call:
+            denied = self.client.post(
+                "/api/telegram/webhook",
+                json={"message": {"chat": {"id": 123}, "text": "/start"}},
+            )
+            self.assertEqual(denied.status_code, 403)
+            response = self.client.post(
+                "/api/telegram/webhook",
+                headers={"X-Telegram-Bot-Api-Secret-Token": "webhook-secret"},
+                json={"message": {"chat": {"id": 123}, "text": "/start"}},
+            )
+        self.assertEqual(response.status_code, 200)
+        telegram_call.assert_called_once()
+        self.assertEqual(telegram_call.call_args.args[0], "sendMessage")
+        self.assertEqual(telegram_call.call_args.args[1]["chat_id"], 123)
+
+    def test_oversized_api_request_is_rejected(self) -> None:
+        response = self.client.post(
+            "/api/auth/logout",
+            headers={"Content-Length": str(main.MAX_API_BODY_BYTES + 1)},
+        )
+        self.assertEqual(response.status_code, 413)
 
     def test_login_logout_and_invalid_password(self) -> None:
         email = self.client.get("/api/auth/me").json()["email"]
@@ -228,6 +334,9 @@ class ChatApiTests(unittest.TestCase):
         self.assertEqual(len(result["daily"]), 30)
         self.assertEqual(result["valid_days"], 0)
         self.assertFalse(result["baseline_ready"])
+        self.assertIn("baseline_analysis", result)
+        self.assertIn("calibration", result["baseline_analysis"])
+        self.assertIn("data_quality", result["baseline_analysis"])
 
     def test_gemini_report_uses_chat_and_metrics_but_excludes_profile_notes(self) -> None:
         self.client.put(
@@ -292,11 +401,95 @@ class ChatApiTests(unittest.TestCase):
                 (self.participant_id,),
             ).fetchone())
 
+    def test_daily_session_has_varied_server_plan_and_accepts_events(self) -> None:
+        response = self.client.post("/api/sessions/today")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload["session"]["game_order"]), 5)
+        self.assertEqual(set(payload["session"]["game_order"]), {
+            "pattern_recall",
+            "symbol_match",
+            "reaction_tap",
+            "word_recall",
+            "category_fluency",
+        })
+        self.assertEqual(payload["session"]["next"]["type"], "ask")
+        message = self.client.post(
+            f"/api/sessions/{payload['session']['date']}/messages",
+            json={"text": "I feel calm today.", "client_event_id": str(uuid4())},
+        )
+        self.assertEqual(message.status_code, 200)
+        self.assertEqual(message.json()["session"]["next"]["type"], "game")
+        self.assertTrue(message.json()["voice_practice_word"])
+
+    def test_daily_session_rejects_activity_until_current_question_is_answered(self) -> None:
+        session = self.client.post("/api/sessions/today").json()
+        response = self.client.post(
+            f"/api/sessions/{session['session']['date']}/games/{session['session']['game_order'][0]}",
+            json={"client_event_id": str(uuid4()), "result": {}},
+        )
+        self.assertEqual(response.status_code, 409)
+
+    def test_voice_capture_signal_is_saved_as_neutral_observation_metadata(self) -> None:
+        self.consent_to_gemini()
+        with patch.object(main, "_create_gemini_response", return_value="Thanks for sharing."):
+            response = self.client.post(
+                "/api/chat",
+                json={
+                    "participant_id": self.participant_id,
+                    "language": "en",
+                    "text": "river",
+                    "consented": True,
+                    "voice_duration_ms": 1200,
+                    "target_word_match": True,
+                    "speech_capture_quality": "matched",
+                },
+            )
+        self.assertEqual(response.status_code, 200)
+        with main.database() as connection:
+            row = connection.execute(
+                """
+                SELECT observation_json FROM cognitive_observations
+                WHERE participant_id = ? ORDER BY id DESC LIMIT 1
+                """,
+                (self.participant_id,),
+            ).fetchone()
+        self.assertIsNotNone(row)
+        observation = json.loads(row["observation_json"])
+        markers = observation["behavioral_markers"]
+        self.assertTrue(markers["target_word_match"])
+        self.assertEqual(markers["speech_capture_quality"], "matched")
+        self.assertEqual(markers["voice_duration_ms"], 1200)
+
     def test_pdf_report_requires_authenticated_participant(self) -> None:
         unauthenticated = TestClient(main.app)
         with unauthenticated:
             response = unauthenticated.get(f"/api/reports/{self.participant_id}/pdf")
         self.assertEqual(response.status_code, 401)
+
+    def test_weekly_report_is_date_bounded_and_downloadable(self) -> None:
+        self.chat()
+        report = self.client.get(
+            f"/api/reports/{self.participant_id}/weekly/2026-10-23"
+        )
+        self.assertEqual(report.status_code, 200)
+        payload = report.json()
+        self.assertEqual(payload["period_start"], "2026-10-17")
+        self.assertEqual(payload["period_end"], "2026-10-23")
+        self.assertEqual(len(payload["daily"]), 7)
+        pdf = self.client.get(
+            f"/api/reports/{self.participant_id}/weekly/2026-10-23/pdf"
+        )
+        self.assertEqual(pdf.status_code, 200)
+        self.assertTrue(pdf.content.startswith(b"%PDF-"))
+        future = self.client.get(
+            f"/api/reports/{self.participant_id}/weekly/2999-01-01"
+        )
+        self.assertEqual(future.status_code, 422)
+        invalid = self.client.get(
+            f"/api/reports/{self.participant_id}/weekly/not-a-date"
+        )
+        self.assertEqual(invalid.status_code, 422)
 
     def test_pdf_handles_marathi_profile_notes_without_silently_corrupting_text(self) -> None:
         self.client.put(

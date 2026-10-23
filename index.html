@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f5f7f2">
     <meta name="description" content="A gentle daily check-in and memory activity from Cogni-Routine.">
-    <title>Cogni-Routine | Daily check-in</title>
+    <title>Cogni-Routine | Cogni Checkin</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="styles.css">
     <script src="app.js" defer></script>
   </head>
@@ -58,8 +59,8 @@
       </section>
     </main>
 
-    <main class="app-shell" id="app-shell" hidden>
-      <aside class="app-sidebar" aria-label="Main navigation">
+    <main class="app-shell" id="app-shell" hidden aria-busy="false">
+      <aside class="app-sidebar" id="app-sidebar" aria-label="Main navigation">
         <a class="brand sidebar-brand" href="#chat-card" data-view="chat-card" aria-label="Cogni-Routine home">
           <span class="brand-mark" aria-hidden="true">+</span>
           <span>Cogni-Routine</span>
@@ -68,7 +69,9 @@
           <a href="#chat-card" data-view="chat-card" aria-current="page"><span aria-hidden="true">◦</span> Daily chat</a>
           <a href="#activity-section" data-view="activity-section"><span aria-hidden="true">▦</span> Activities</a>
           <a href="#report-section" data-view="report-section"><span aria-hidden="true">▤</span> My history</a>
+          <a href="#track-section" data-view="track-section"><span aria-hidden="true">✓</span> Family track</a>
           <a href="#profile-section" data-view="profile-section"><span aria-hidden="true">○</span> Profile</a>
+          <a href="#about-section" data-view="about-section"><span aria-hidden="true">i</span> About</a>
         </nav>
         <div class="sidebar-bottom">
           <span class="sidebar-user" id="sidebar-user"></span>
@@ -77,10 +80,20 @@
       </aside>
         <div class="main-content">
         <header class="topbar">
-        <a class="brand" href="#" aria-label="Cogni-Routine home">
+        <button class="menu-button" id="menu-button" type="button" aria-controls="app-sidebar" aria-expanded="false" aria-label="Open navigation">
+          <span class="hamburger-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+        </button>
+        <a class="brand topbar-brand" href="#" aria-label="Cogni-Routine home">
           <span class="brand-mark" aria-hidden="true">+</span>
-          <span>cogni-routine</span>
+          <span>Cogni-Routine</span>
         </a>
+        <div class="topbar-actions">
+          <div class="text-size-controls" role="group" aria-label="Text size">
+            <button class="text-size-button" id="text-size-decrease" type="button" aria-label="Decrease text size">A-</button>
+            <span id="text-size-value" aria-live="polite">100%</span>
+            <button class="text-size-button" id="text-size-increase" type="button" aria-label="Increase text size">A+</button>
+          </div>
+          <button class="dark-mode-button" id="dark-mode-button" type="button" aria-pressed="false" aria-label="Enable dark mode">◐</button>
         <label class="language-picker">
           <span class="sr-only">Choose language</span>
           <select id="language-select" aria-label="Choose language">
@@ -89,6 +102,7 @@
             <option value="mr">मराठी</option>
           </select>
         </label>
+        </div>
       </header>
 
       <section class="chat-card" id="chat-card" aria-labelledby="chat-title">
@@ -115,7 +129,7 @@
           </article>
 
           <div class="chat-activity-container" id="chat-activity-container"></div>
-          <button class="chat-test-button" id="chat-test-button" type="button">Try a short cognitive activity</button>
+          <button class="chat-test-button" id="chat-test-button" type="button" hidden>Continue to today’s activity</button>
         </div>
 
         <form class="composer" id="message-form">
@@ -138,10 +152,25 @@
             </svg>
           </button>
         </form>
-        <label class="chat-consent">
+        <label class="chat-consent" hidden>
           <input id="consent-checkbox" type="checkbox" checked>
           <span id="consent-copy">Save this chat and activity history in my account.</span>
         </label>
+        <details class="daily-context" hidden>
+          <summary>Optional context for today's record</summary>
+          <div class="daily-context-fields">
+            <label>Sleep quality
+              <select id="sleep-quality">
+                <option value="">Not recorded</option><option value="1">1 - Poor</option>
+                <option value="2">2</option><option value="3">3 - Usual</option>
+                <option value="4">4</option><option value="5">5 - Good</option>
+              </select>
+            </label>
+            <label>Feeling unwell today
+              <select id="illness-today"><option value="">Not recorded</option><option value="false">No</option><option value="true">Yes</option></select>
+            </label>
+          </div>
+        </details>
         <p class="privacy-note" id="privacy-note">Saved in your account. Avoid sharing information you do not want stored.</p>
         <p class="status-message" id="status-message" role="status" aria-live="polite"></p>
       </section>
@@ -229,10 +258,12 @@
             <button class="secondary-button" id="refresh-report" type="button"></button>
             <button class="secondary-button" id="generate-ai-report" type="button">Agent summary</button>
             <button class="secondary-button" id="download-report" type="button"></button>
+            <button class="secondary-button" id="download-daily-report" type="button">Download today</button>
+            <button class="secondary-button" id="download-weekly-report" type="button">Download week</button>
             <button class="secondary-button" id="print-report" type="button"></button>
           </div>
         </div>
-        <div class="report-card" id="report-card" aria-live="polite"></div>
+        <div class="report-card" id="report-card" aria-live="polite" aria-busy="false"></div>
         <div id="ai-report-summary" class="ai-report-summary" hidden aria-live="polite"></div>
       </section>
 
@@ -270,6 +301,88 @@
           <span class="safety-icon" aria-hidden="true">i</span>
           <p id="safety-copy"></p>
         </footer>
+      </section>
+
+      <section class="track-section" id="track-section" aria-labelledby="track-title" hidden>
+        <div class="section-heading centered-heading">
+          <div>
+            <p class="eyebrow">FAMILY CHECK-IN</p>
+            <h2 id="track-title">Monthly routine track</h2>
+            <p class="section-description">A simple 30-day view showing whether the full daily routine was completed. It does not measure health or diagnose a condition.</p>
+          </div>
+        </div>
+        <div class="track-card" id="track-card" aria-live="polite">
+          <p class="loading-copy">Loading your monthly routine…</p>
+        </div>
+      </section>
+
+      <section class="about-section" id="about-section" aria-labelledby="about-title" hidden>
+        <div class="section-heading centered-heading">
+          <div>
+            <p class="eyebrow">ABOUT COGNI-ROUTINE</p>
+            <h2 id="about-title">The thinking behind the product</h2>
+            <p class="section-description">A calm, chat-first routine designed to make everyday wellbeing check-ins easier to understand and easier to continue.</p>
+          </div>
+        </div>
+        <div class="about-grid">
+          <article class="about-card">
+            <span class="about-icon" aria-hidden="true">◌</span>
+            <h3>Personal baseline</h3>
+            <p>The product looks at a person’s own repeated routine rather than comparing them with a generic score or another person.</p>
+          </article>
+          <article class="about-card">
+            <span class="about-icon" aria-hidden="true">+</span>
+            <h3>Small daily signals</h3>
+            <p>Conversation, language, memory, spatial, symbol, and response activities create a gentle picture of engagement over time.</p>
+          </article>
+          <article class="about-card">
+            <span class="about-icon" aria-hidden="true">↗</span>
+            <h3>Persistent change matters</h3>
+            <p>One unusual day is not treated as a conclusion. The system looks for repeated patterns and presents them as descriptive information.</p>
+          </article>
+          <article class="about-card">
+            <span class="about-icon" aria-hidden="true">i</span>
+            <h3>Safety first</h3>
+            <p>Cogni-Routine is wellbeing tracking and a mild cognitive activity, not medical advice, diagnosis, screening, or a replacement for professional care.</p>
+          </article>
+          <article class="about-card">
+            <span class="about-icon" aria-hidden="true">↻</span>
+            <h3>One guided daily loop</h3>
+            <p>The server keeps the routine in order: conversation, five short activities, and completion. The web client renders the current step rather than deciding what comes next.</p>
+          </article>
+          <article class="about-card">
+            <span class="about-icon" aria-hidden="true">भ</span>
+            <h3>Built for real conversations</h3>
+            <p>English, Hindi, and Marathi support makes the routine more familiar, while voice input remains optional and is treated as a capture signal, not a speech diagnosis.</p>
+          </article>
+          <article class="about-card">
+            <span class="about-icon" aria-hidden="true">▦</span>
+            <h3>Five complementary domains</h3>
+            <p>Language, memory, spatial recall, symbol matching, and response timing are observed across repeated sessions instead of reduced to one isolated number.</p>
+          </article>
+          <article class="about-card">
+            <span class="about-icon" aria-hidden="true">≈</span>
+            <h3>Quality before interpretation</h3>
+            <p>Sleep, illness, device changes, typing context, and incomplete days are kept as data-quality context so ordinary variation is not over-interpreted.</p>
+          </article>
+          <article class="about-card">
+            <span class="about-icon" aria-hidden="true">□</span>
+            <h3>Research stage</h3>
+            <p>This is a prototype for prospective validation with Indian-language users. Future evaluation should compare adherence and patterns with an accepted clinical reference under human oversight.</p>
+          </article>
+        </div>
+        <div class="about-report-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">30-DAY DEMONSTRATION VIEW</p>
+              <h3>What the product can show</h3>
+            </div>
+          </div>
+          <div class="about-report-grid" id="about-report-grid" aria-live="polite">
+            <p class="loading-copy">Loading your 30-day insight view…</p>
+          </div>
+          <p class="report-note">These are routine and participation insights, not clinical scores or a diagnosis. A professional should interpret any health concern.</p>
+        </div>
       </section>
 
       </div>
