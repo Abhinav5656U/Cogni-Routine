@@ -465,6 +465,43 @@ class ChatApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 409)
 
+    def test_incomplete_daily_session_resumes_and_finishes_all_five_activities(self) -> None:
+        session = self.client.post("/api/sessions/today").json()
+        session_date = session["session"]["date"]
+        session = self.client.post(
+            f"/api/sessions/{session_date}/messages",
+            json={"text": "I feel well today.", "client_event_id": str(uuid4())},
+        ).json()
+        self.assertEqual(session["session"]["next"]["type"], "game")
+
+        resumed = self.client.post("/api/sessions/today").json()
+        self.assertEqual(resumed["session"]["next"]["type"], "game")
+        self.assertEqual(resumed["session"]["step_index"], session["session"]["step_index"])
+
+        completed_games = 0
+        while session["session"]["next"]["type"] != "complete":
+            next_step = session["session"]["next"]
+            if next_step["type"] == "ask":
+                session = self.client.post(
+                    f"/api/sessions/{session_date}/messages",
+                    json={"text": "A little more about my day.", "client_event_id": str(uuid4())},
+                ).json()
+                next_step = session["session"]["next"]
+            self.assertEqual(next_step["type"], "game")
+            session = self.client.post(
+                f"/api/sessions/{session_date}/games/{next_step['game_id']}",
+                json={"client_event_id": str(uuid4()), "result": {"synthetic": True}},
+            ).json()
+            completed_games += 1
+
+        self.assertEqual(completed_games, 5)
+        self.assertEqual(session["session"]["tasks_completed"], 5)
+        self.assertEqual(session["session"]["status"], "complete")
+        self.assertEqual(
+            self.client.post("/api/sessions/today").json()["session"]["status"],
+            "complete",
+        )
+
     def test_voice_capture_signal_is_saved_as_neutral_observation_metadata(self) -> None:
         self.consent_to_agent()
         with patch.object(main, "_create_agent_response", return_value="Thanks for sharing."):

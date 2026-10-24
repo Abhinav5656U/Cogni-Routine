@@ -459,6 +459,11 @@ class SessionGameRequest(BaseModel):
     client_event_id: str = Field(min_length=1, max_length=100)
 
 
+class ConversationTranslationRequest(BaseModel):
+    language: Literal["en", "hi", "mr"]
+    message_ids: list[int] = Field(min_length=1, max_length=20)
+
+
 class Model1Observation(BaseModel):
     language_and_fluency: dict[str, Any]
     memory_indicators: dict[str, Any]
@@ -1010,7 +1015,8 @@ def _demo_chat_reply(text: str, language: str) -> str:
     return replies[language]
 
 
-def _session_copy(session: sqlite3.Row) -> dict[str, Any]:
+def _session_copy(session: sqlite3.Row, connection: sqlite3.Connection) -> dict[str, Any]:
+    games_done = _completed_session_games(connection, session["id"], _steps_for_session(session))
     steps = _steps_for_session(session)
     game_order = json.loads(session["plan_json"] or "[]")
     step_id, step_type, game_id = steps[session["step_index"]]
@@ -1021,11 +1027,8 @@ def _session_copy(session: sqlite3.Row) -> dict[str, Any]:
         "state": step_id,
         "step_index": session["step_index"],
         "steps_total": len(DAILY_STEPS),
-        "tasks_completed": sum(
-            1
-            for index in range(session["step_index"])
-            if steps[index][1] == "game"
-        ),
+        "tasks_completed": len(games_done),
+        "completed_games": [game for game in game_order if game in games_done],
         "next": {
             "type": step_type,
             **({"game_id": game_id} if game_id else {}),
@@ -1033,6 +1036,27 @@ def _session_copy(session: sqlite3.Row) -> dict[str, Any]:
         "context": json.loads(session["context_json"] or "{}"),
         "game_order": game_order,
     }
+
+
+def _completed_session_games(
+    connection: sqlite3.Connection,
+    session_id: int,
+    steps: tuple[tuple[str, str, str | None], ...],
+) -> set[str]:
+    planned_games = {game_id for _, step_type, game_id in steps if step_type == "game"}
+    rows = connection.execute(
+        "SELECT payload_json FROM session_events WHERE session_id = ? AND event_type = 'game'",
+        (session_id,),
+    ).fetchall()
+    completed: set[str] = set()
+    for row in rows:
+        try:
+            game_id = json.loads(row["payload_json"]).get("game_id")
+        except (json.JSONDecodeError, AttributeError):
+            continue
+        if game_id in planned_games:
+            completed.add(game_id)
+    return completed
 
 
 def _steps_for_session(session: sqlite3.Row) -> tuple[tuple[str, str, str | None], ...]:
@@ -1109,9 +1133,13 @@ def _advance_automatic_steps(connection: sqlite3.Connection, session_id: int) ->
             ).fetchone()
 
 
-def _session_payload(session: sqlite3.Row, language: str) -> dict[str, Any]:
+def _session_payload(
+    session: sqlite3.Row,
+    language: str,
+    connection: sqlite3.Connection,
+) -> dict[str, Any]:
     return {
-        "session": _session_copy(session),
+        "session": _session_copy(session, connection),
         "bot_messages": _session_bot_messages(session, language),
         "voice_practice_word": _daily_voice_practice_word(
             str(session["participant_id"]), session["session_date"], language
@@ -1165,7 +1193,7 @@ def _get_or_create_session(
             (participant_id, session_date),
         ).fetchone()
         session = _advance_automatic_steps(connection, session["id"])
-        return _session_payload(session, language)
+        return _session_payload(session, language, connection)
 
 
 def _record_session_event(
@@ -1201,25 +1229,6 @@ def _record_session_event(
 def create_or_resume_today(account: dict[str, Any] = Depends(_current_account)) -> dict[str, Any]:
     today = datetime.now(INDIA_TIMEZONE).date().isoformat()
     participant_id = str(account["participant_id"])
-    with database() as connection:
-        existing = connection.execute(
-            "SELECT * FROM daily_sessions WHERE participant_id = ? AND session_date = ?",
-            (participant_id, today),
-        ).fetchone()
-        if existing and existing["status"] != "complete":
-            connection.execute(
-                """
-                UPDATE daily_sessions
-                SET state = 'greet', step_index = 0, status = 'active',
-                    context_json = '{}', plan_json = ?, updated_at = ?
-                WHERE id = ?
-                """,
-                (
-                    json.dumps(_daily_game_order(participant_id, today)),
-                    datetime.now(timezone.utc).isoformat(),
-                    existing["id"],
-                ),
-            )
     return _get_or_create_session(participant_id, today, account["language"])
 
 
@@ -1241,7 +1250,7 @@ def get_daily_session(
         if session is None:
             raise HTTPException(status_code=404, detail="Daily session was not found.")
         session = _advance_automatic_steps(connection, session["id"])
-        return _session_payload(session, account["language"])
+        return _session_payload(session, account["language"], connection)
 
 
 @app.post("/api/sessions/{session_date}/context")
@@ -1259,7 +1268,7 @@ def save_session_context(
         if session is None:
             raise HTTPException(status_code=404, detail="Daily session was not found.")
         if not _record_session_event(connection, participant_id, session["id"], request.client_event_id, "context", request.model_dump()):
-            return _session_payload(session, account["language"])
+            return _session_payload(session, account["language"], connection)
         context = json.loads(session["context_json"] or "{}")
         context.update(request.model_dump(exclude={"client_event_id"}))
         connection.execute(
@@ -1273,7 +1282,7 @@ def save_session_context(
             ),
         )
         session = _advance_automatic_steps(connection, session["id"])
-        return _session_payload(session, account["language"])
+        return _session_payload(session, account["language"], connection)
 
 
 def _advance_session_after_event(
@@ -1315,7 +1324,7 @@ def save_session_message(
         if steps[session["step_index"]][1] != "ask":
             raise HTTPException(status_code=409, detail="The daily session is waiting for its current step.")
         if not _record_session_event(connection, participant_id, session["id"], request.client_event_id, "message", request.model_dump()):
-            return _session_payload(session, account["language"])
+            return _session_payload(session, account["language"], connection)
         existing_message = connection.execute(
             """
             SELECT id FROM messages
@@ -1334,7 +1343,7 @@ def save_session_message(
                 (participant_id, request.text.strip(), account["language"], timestamp),
             )
         next_session = _advance_session_after_event(connection, session)
-        return _session_payload(next_session, account["language"])
+        return _session_payload(next_session, account["language"], connection)
 
 
 @app.post("/api/sessions/{session_date}/games/{game_id}")
@@ -1353,13 +1362,20 @@ def save_session_game(
         if session is None:
             raise HTTPException(status_code=404, detail="Daily session was not found.")
         steps = _steps_for_session(session)
-        expected_game = steps[session["step_index"]][2]
-        if steps[session["step_index"]][1] != "game" or expected_game != game_id:
-            raise HTTPException(status_code=409, detail="That puzzle is not the current daily step.")
-        if not _record_session_event(connection, participant_id, session["id"], request.client_event_id, "game", request.model_dump()):
-            return _session_payload(session, account["language"])
+        current_step_type = steps[session["step_index"]][1]
+        if current_step_type != "game":
+            raise HTTPException(status_code=409, detail="The daily session is waiting for its current step.")
+        planned_games = {planned_game for _, step_type, planned_game in steps if step_type == "game"}
+        completed_games = _completed_session_games(connection, session["id"], steps)
+        if game_id not in planned_games:
+            raise HTTPException(status_code=404, detail="That puzzle is not part of today's activity plan.")
+        if game_id in completed_games:
+            raise HTTPException(status_code=409, detail="That puzzle has already been completed today.")
+        payload = {**request.model_dump(), "game_id": game_id}
+        if not _record_session_event(connection, participant_id, session["id"], request.client_event_id, "game", payload):
+            return _session_payload(session, account["language"], connection)
         next_session = _advance_session_after_event(connection, session)
-        return _session_payload(next_session, account["language"])
+        return _session_payload(next_session, account["language"], connection)
 
 
 @app.get("/api/health")
@@ -1680,6 +1696,56 @@ def conversation_history(
             (owned_id,),
         ).fetchall()
     return HistoryResponse(messages=[MessageResponse(**dict(row)) for row in rows])
+
+
+@app.post("/api/messages/translate")
+def translate_messages(
+    request: ConversationTranslationRequest,
+    account: dict[str, Any] = Depends(_current_account),
+) -> dict[str, Any]:
+    owned_id = str(account["participant_id"])
+    if not request.message_ids:
+        return {"updated": 0, "language": request.language}
+    with database() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, text, language
+            FROM messages
+            WHERE participant_id = ? AND id IN ({})
+            ORDER BY id
+            """.format(", ".join("?" for _ in request.message_ids)),
+            (owned_id, *request.message_ids),
+        ).fetchall()
+    if not rows:
+        return {"updated": 0, "language": request.language}
+
+    translated: list[int] = []
+    for row in rows:
+        source_language = row["language"]
+        text = row["text"].strip()
+        if not text:
+            continue
+        try:
+            response = _create_model_response(
+                (
+                    "Translate the following message to the target language. "
+                    "Return only the translated text, with no labels or code blocks. "
+                    f"Current language: {source_language}. Target language: {request.language}. "
+                    f"Message: {json.dumps(text, ensure_ascii=False)}"
+                ),
+                [{"role": "user", "parts": [{"text": text}]}],
+                model_number=1,
+            )
+        except HTTPException:
+            response = text
+        translated_text = response.strip() if response else text
+        with database() as connection:
+            connection.execute(
+                "UPDATE messages SET text = ?, language = ? WHERE participant_id = ? AND id = ?",
+                (translated_text, request.language, owned_id, row["id"]),
+            )
+        translated.append(row["id"])
+    return {"updated": len(translated), "language": request.language, "message_ids": translated}
 
 
 @app.post("/api/chat", response_model=ChatResponse)

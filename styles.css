@@ -556,6 +556,21 @@ button:disabled {
   cursor: pointer;
 }
 
+.chat-routine-prompt {
+  margin: 18px 0 0 39px;
+  padding: 12px 15px;
+  border: 1px solid #d9e6dc;
+  border-radius: 16px;
+  background: #f4faf5;
+  color: #52695a;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chat-routine-prompt[hidden] {
+  display: none;
+}
+
 .daily-context {
   margin: 12px 26px 0 39px;
   color: #64748b;
@@ -592,6 +607,19 @@ button:disabled {
 .chat-test-button:focus-visible {
   border-color: #9bc5a5;
   background: #eaf6ed;
+}
+
+.chat-test-button:disabled,
+.composer button:disabled,
+.composer input:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+body.dark-mode .chat-routine-prompt {
+  border-color: #3e4e42;
+  background: #29372d;
+  color: #c3d1c7;
 }
 
 .starter-prompts {

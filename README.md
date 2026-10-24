@@ -6,7 +6,7 @@ This build is a web MVP using FastAPI, SQLite, HTML, CSS, and browser JavaScript
 
 ## Accessibility and display controls
 
-- The header includes **A-** and **A+** controls for a smaller or larger whole-app display. The default remains 100%, and the selected size is saved only in the current browser.
+- The header includes **A-** and **A+** controls for a smaller or larger whole-app display, adjustable from 80% to 120%. The default remains 100%, and the selected size is saved only in the current browser.
 - The navigation menu can be opened with the menu button and closed with **Escape**; focus returns to the menu button.
 - Reports expose loading status and a retry action when history cannot be loaded.
 - Visible focus outlines, keyboard-operable controls, live status regions, reduced-motion support, and responsive layouts are included in the current web MVP.

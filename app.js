@@ -42,14 +42,15 @@ const chatActivityContainer = document.querySelector("#chat-activity-container")
 const menuButton = document.querySelector("#menu-button");
 const appSidebar = document.querySelector("#app-sidebar");
 const darkModeButton = document.querySelector("#dark-mode-button");
+const chatRoutinePrompt = document.querySelector("#chat-routine-prompt");
 const textSizeDecrease = document.querySelector("#text-size-decrease");
 const textSizeIncrease = document.querySelector("#text-size-increase");
 const textSizeValue = document.querySelector("#text-size-value");
 const savedTheme = localStorage.getItem("cogni-theme");
 if (savedTheme === "dark") document.body.classList.add("dark-mode");
-const textScales = [0.9, 1, 1.1];
+const textScales = [0.8, 0.9, 1, 1.1, 1.2];
 let textScaleIndex = Math.max(0, textScales.indexOf(Number(localStorage.getItem("cogni-text-scale"))));
-if (!textScales.includes(Number(localStorage.getItem("cogni-text-scale")))) textScaleIndex = 1;
+if (!textScales.includes(Number(localStorage.getItem("cogni-text-scale")))) textScaleIndex = 5;
 
 const textSizeLabels = {
   en: { group: "Text size", decrease: "Decrease text size", increase: "Increase text size" },
@@ -301,6 +302,10 @@ const translations = {
     recallPlaceholder: (number) => `Word ${number}`,
     activityError: "The result could not be saved. Please try again.",
     activityConsent: "Please agree to save activity results before starting.",
+    activityNextPrompt: (number, name) => `Activity ${number} of 5: Complete ${name} to continue today’s check-in.`,
+    activityStart: (name) => `Start ${name}`,
+    nextCheckinPrompt: "Your next check-in is ready. Share your response when you’re ready.",
+    routineComplete: "All five activities are complete for today. You can continue chatting or return tomorrow.",
     activityDisclaimer: "These activities are not clinically validated cognitive tests. Scores cannot diagnose or rule out a condition.",
     reportEyebrow: "30-DAY SUMMARY",
     reportTitle: "Your activity report",
@@ -346,6 +351,10 @@ const translations = {
     recallPlaceholder: (number) => `शब्द ${number}`,
     activityError: "नतीजा सहेजा नहीं जा सका। कृपया फिर कोशिश करें।",
     activityConsent: "गतिविधि शुरू करने से पहले नतीजे सहेजने की सहमति दें।",
+    activityNextPrompt: (number, name) => `5 में से गतिविधि ${number}: आज की बातचीत जारी रखने के लिए ${name} पूरी करें।`,
+    activityStart: (name) => `${name} शुरू करें`,
+    nextCheckinPrompt: "आपकी अगली बातचीत तैयार है। जब चाहें अपना जवाब साझा करें।",
+    routineComplete: "आज की पाँचों गतिविधियाँ पूरी हो गई हैं। आप बातचीत जारी रख सकते हैं या कल फिर आ सकते हैं।",
     activityDisclaimer: "ये गतिविधियाँ चिकित्सकीय रूप से सत्यापित संज्ञानात्मक जाँच नहीं हैं। इनके अंक किसी स्थिति का निदान या खंडन नहीं कर सकते।",
     reportEyebrow: "30-दिन का सारांश",
     reportTitle: "आपकी गतिविधि रिपोर्ट",
@@ -391,6 +400,10 @@ const translations = {
     recallPlaceholder: (number) => `शब्द ${number}`,
     activityError: "निकाल जतन करता आला नाही. कृपया पुन्हा प्रयत्न करा.",
     activityConsent: "उपक्रम सुरू करण्यापूर्वी निकाल जतन करण्यास संमती द्या.",
+    activityNextPrompt: (number, name) => `५ पैकी उपक्रम ${number}: आजची विचारपूस पुढे सुरू ठेवण्यासाठी ${name} पूर्ण करा.`,
+    activityStart: (name) => `${name} सुरू करा`,
+    nextCheckinPrompt: "तुमची पुढील विचारपूस तयार आहे. तयार असाल तेव्हा उत्तर सांगा.",
+    routineComplete: "आजचे पाचही उपक्रम पूर्ण झाले आहेत. तुम्ही गप्पा सुरू ठेवू शकता किंवा उद्या परत येऊ शकता.",
     activityDisclaimer: "हे उपक्रम वैद्यकीयदृष्ट्या प्रमाणित संज्ञानात्मक चाचण्या नाहीत. गुणांवरून कोणत्याही स्थितीचे निदान किंवा नकार देता येत नाही.",
     reportEyebrow: "30 दिवसांचा सारांश",
     reportTitle: "तुमचा उपक्रम अहवाल",
@@ -539,6 +552,7 @@ function renderLanguage() {
   });
 
   sendButton.disabled = !consentCheckbox.checked;
+  updateActivityVisibility();
 }
 
 function setAuthMode(mode) {
@@ -622,22 +636,68 @@ async function loadDailySession() {
 
 function updateActivityVisibility() {
   const chatIsVisible = !document.querySelector("#chat-card")?.hidden;
-  const showInChat = hasMessages && chatIsVisible && !activeTask;
+  const showInChat = chatIsVisible;
   const showInActivityView = !chatIsVisible;
-  activityOptions.hidden = !(showInChat || showInActivityView);
   const currentStep = dailySession?.session?.next;
   const activityReady = currentStep?.type === "game";
-  chatTestButton.hidden = !(showInChat && activityReady);
+  const taskName = activityReady
+    ? currentStep.game_id === "pattern_recall"
+      ? "spatial_recall"
+      : currentStep.game_id
+    : null;
+  const taskTitle = taskName ? analysisCopy[currentLanguage].activityNames[taskName] : "";
+  const promptVisible = showInChat && activityReady && !activeTask;
+  activityCard.hidden = chatIsVisible && !activityReady;
+  activityOptions.hidden = !showInActivityView;
+  chatRoutinePrompt.hidden = !(
+    hasMessages && showInChat && ["ask", "complete"].includes(currentStep?.type)
+  );
+  chatRoutinePrompt.textContent = currentStep?.type === "complete"
+    ? translations[currentLanguage].routineComplete
+    : showInChat && currentStep?.type === "ask"
+      ? translations[currentLanguage].nextCheckinPrompt
+      : "";
+  chatTestButton.hidden = !promptVisible;
+  if (promptVisible) {
+    document.querySelector("#activity-selection-copy").textContent =
+      translations[currentLanguage].activityNextPrompt(
+        dailySession.session.tasks_completed + 1,
+        taskTitle,
+      );
+    chatTestButton.textContent = translations[currentLanguage].activityStart(taskTitle);
+    chatTestButton.setAttribute(
+      "aria-label",
+      translations[currentLanguage].activityNextPrompt(
+        dailySession.session.tasks_completed + 1,
+        taskTitle,
+      ),
+    );
+  }
+  const waitingForActivity = activityReady;
+  messageInput.disabled = waitingForActivity;
+  sendButton.disabled = !consentCheckbox.checked || waitingForActivity;
+  document.querySelector("#voice-button").disabled = waitingForActivity;
   const buttons = [...activityOptions.querySelectorAll("[data-task]")];
   if (buttons.length && participantId) {
     const ordered = dailyShuffle(buttons);
     ordered.forEach((button) => activityOptions.append(button));
+    const completedGames = new Set(dailySession?.session?.completed_games ?? []);
+    const plannedGames = new Set(dailySession?.session?.game_order ?? []);
     const currentGame = activityReady ? currentStep.game_id : null;
     for (const button of buttons) {
       const buttonGame = button.dataset.task === "spatial_recall"
         ? "pattern_recall"
         : button.dataset.task;
-      button.disabled = !activityReady || buttonGame !== currentGame;
+      const isPlanned = plannedGames.has(buttonGame);
+      const isCompleted = completedGames.has(buttonGame) || completedGames.has(button.dataset.task === "spatial_recall" ? "pattern_recall" : button.dataset.task);
+      button.hidden = chatIsVisible && buttonGame !== currentGame;
+      button.disabled = chatIsVisible
+        ? !activityReady || buttonGame !== currentGame
+        : !isPlanned || isCompleted;
+      if (showInActivityView) {
+        button.hidden = false;
+        button.disabled = isCompleted;
+      }
     }
   }
 }
@@ -805,6 +865,7 @@ async function submitAuthForm(form, endpoint, includeProfile) {
 function renderMessage(message) {
   const article = document.createElement("article");
   article.className = message.sender === "user" ? "conversation-message" : "message assistant-followup";
+  article.dataset.messageId = String(message.id ?? "");
 
   const content = document.createElement("div");
   content.className = "message-content";
@@ -1151,10 +1212,11 @@ function startActivity(taskName) {
     showStatus(translations[currentLanguage].activityConsent, true);
     return;
   }
-  const expectedGame = dailySession?.session?.next?.game_id;
   const normalizedTask = taskName === "spatial_recall" ? "pattern_recall" : taskName;
-  if (dailySession?.session?.next?.type === "game" && expectedGame !== normalizedTask) {
-    showStatus("Please complete the current activity first.", true);
+  const completedGames = new Set(dailySession?.session?.completed_games ?? []);
+  const plannedGames = new Set(dailySession?.session?.game_order ?? []);
+  if (completedGames.has(normalizedTask) || !plannedGames.has(normalizedTask)) {
+    showStatus("This activity is already complete or unavailable today.", true);
     return;
   }
 
@@ -1162,6 +1224,7 @@ function startActivity(taskName) {
   activeTask = taskName;
   activityStartedAt = Date.now();
   activityIntro.hidden = true;
+  updateActivityVisibility();
   activityResult.hidden = true;
   activityPlay.hidden = false;
   recallForm.hidden = true;
@@ -1479,6 +1542,19 @@ async function saveActivityResult(event) {
 async function sendMessage(message) {
   const text = message.trim();
   if (!text) return;
+  if (dailySession?.session?.next?.type === "game") {
+    const session = dailySession.session;
+    const gameId = session.next.game_id;
+    const taskName = gameId === "pattern_recall" ? "spatial_recall" : gameId;
+    showStatus(
+      translations[currentLanguage].activityNextPrompt(
+        session.tasks_completed + 1,
+        analysisCopy[currentLanguage].activityNames[taskName],
+      ),
+      true,
+    );
+    return;
+  }
   if (!consentCheckbox.checked) {
     showStatus(translations[currentLanguage].consentRequired, true);
     return;
@@ -1796,6 +1872,19 @@ languageSelect.addEventListener("change", async () => {
     profile.age = Number(profile.age);
     await requestJson("/api/profile", { method: "PUT", body: JSON.stringify(profile) });
     currentAccount.language = currentLanguage;
+    const currentMessages = chatLog.querySelectorAll(".conversation-message, .assistant-followup");
+    if (currentMessages.length) {
+      const translationPayload = {
+        language: currentLanguage,
+        message_ids: [...currentMessages].map((node) => Number(node.dataset.messageId || 0)).filter(Boolean),
+      };
+      if (translationPayload.message_ids.length) {
+        await requestJson("/api/messages/translate", {
+          method: "POST",
+          body: JSON.stringify(translationPayload),
+        }).catch(() => undefined);
+      }
+    }
     await Promise.all([loadHistory(), loadReport(), loadDailyQuestion()]);
   } catch (error) {
     showStatus(translations[currentLanguage].loadError, true);
@@ -1857,8 +1946,9 @@ textSizeIncrease?.addEventListener("click", () => {
   applyTextScale();
 });
 chatTestButton.addEventListener("click", () => {
-  showView("chat-card");
-  activityCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  const gameId = dailySession?.session?.next?.game_id;
+  if (!gameId) return;
+  startActivity(gameId === "pattern_recall" ? "spatial_recall" : gameId);
 });
 for (const link of document.querySelectorAll("[data-view]")) {
 link.addEventListener("click", (event) => {
